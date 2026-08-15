@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useIDEStore } from "@/store/ideStore"
 import { execute } from "@/lib/executorChain"
-import { createTerminalWebSocket, syncWorkspaceFiles, type WorkspaceFilePayload } from "@/lib/backendRunner"
+import { createTerminalWebSocket, isBackendAvailable, syncWorkspaceFiles, type WorkspaceFilePayload } from "@/lib/backendRunner"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy"
@@ -51,7 +51,7 @@ function mkLine(type: TermLine["type"], content: string): TermLine {
 
 function initState(type: TermType): TabState {
   const welcomes: Record<TermType, string> = {
-    shell: "SK Shell — ls, cd, cat, run, mkdir, touch, help",
+    shell: "SK Shell — Oracle workspace commands when connected · local file utilities when offline",
     python: "Python 3 — Ready",
     nodejs: "Node.js — Ready",
     java: "Java — Ready",
@@ -128,11 +128,20 @@ const TERM_LABELS: Record<TermType, string> = {
   ai: "AI",
 }
 
+const WORKSPACE_COMMANDS = new Set([
+  "npm", "npx", "pnpm", "yarn", "pip", "pip3", "git", "curl", "wget", "bash", "sh", "chmod", "rm", "cp", "mv", "find", "grep", "sed", "apt", "apk", "go", "cargo", "rustc", "javac",
+])
+
+function isWorkspaceCommand(input: string) {
+  const command = input.trim().split(/\s+/, 1)[0]?.toLowerCase()
+  return Boolean(command && WORKSPACE_COMMANDS.has(command))
+}
+
 const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
-  { type: "shell", label: "SK Shell", desc: "Workspace filesystem · execute any file" },
-  { type: "python", label: "Python 3", desc: "Execute Python code" },
-  { type: "nodejs", label: "Node.js", desc: "Execute JavaScript/Node.js code" },
-  { type: "java", label: "Java", desc: "Compile and execute Java code" },
+  { type: "shell", label: "SK Shell", desc: "Oracle workspace commands · local file utilities" },
+  { type: "python", label: "Python 3", desc: "Execute Python source · shell commands route to SK Shell" },
+  { type: "nodejs", label: "Node.js", desc: "Execute Node.js source · shell commands route to SK Shell" },
+  { type: "java", label: "Java", desc: "Execute Java source · shell commands route to SK Shell" },
   { type: "ai", label: "AI", desc: "Ask code questions · get help" },
 ]
 
@@ -253,21 +262,30 @@ export default function MultiTerminal() {
 
   useEffect(() => {
     if (!settings.backend.enabled) return
-    const socket = createTerminalWebSocket({
-      onReady: (sessionId) => {
-        workspaceSessionIdRef.current = sessionId
-        addLine(activeShellTabRef.current, "success", "Connected to isolated workspace session.")
-      },
-      onStdout: (data) => addLines(activeShellTabRef.current, "output", data),
-      onStderr: (data) => addLines(activeShellTabRef.current, "error", data),
-      onExit: (code) => addLine(activeShellTabRef.current, "info", `Process exited with code ${code}`),
-      onError: () => { workspaceSessionIdRef.current = null },
+    let disposed = false
+    let socket: ReturnType<typeof createTerminalWebSocket> | null = null
+    void isBackendAvailable().then((available) => {
+      if (disposed || !available) {
+        if (!disposed) addLine(activeShellTabRef.current, "info", "Oracle workspace session unavailable. Source-code tabs will use live execution fallbacks.")
+        return
+      }
+      socket = createTerminalWebSocket({
+        onReady: (sessionId) => {
+          workspaceSessionIdRef.current = sessionId
+          addLine(activeShellTabRef.current, "success", "Connected to isolated workspace session.")
+        },
+        onStdout: (data) => addLines(activeShellTabRef.current, "output", data),
+        onStderr: (data) => addLines(activeShellTabRef.current, "error", data),
+        onExit: (code) => addLine(activeShellTabRef.current, "info", `Process exited with code ${code}`),
+        onError: () => { workspaceSessionIdRef.current = null },
+      })
+      terminalSocketRef.current = socket
     })
-    terminalSocketRef.current = socket
     return () => {
+      disposed = true
       terminalSocketRef.current = null
       workspaceSessionIdRef.current = null
-      socket.close()
+      socket?.close()
     }
   }, [settings.backend.enabled])
 
@@ -345,7 +363,7 @@ export default function MultiTerminal() {
     for (const p of parts) addLine(tabId, type, p)
   }
 
-  const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
+const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
 
   function clearTab(tabId: string) {
     updateState(tabId, { lines: [] })
@@ -510,6 +528,11 @@ export default function MultiTerminal() {
       return
     }
 
+    if (isWorkspaceCommand(input)) {
+      addLine(tabId, "error", `${cmd} requires an active Oracle workspace session. Configure and connect the backend, then run this command in SK Shell.`)
+      return
+    }
+
     addLine(tabId, "error", `${cmd}: command not found. Type 'help' for available commands.`)
   }
 
@@ -631,7 +654,16 @@ export default function MultiTerminal() {
     updateState(tabId, { running: true })
     try {
       if (type === "shell") await handleShell(tabId, input)
-      else if (type === "python") await handlePython(tabId, input)
+      else if (type === "python" && isWorkspaceCommand(input)) {
+        addLine(tabId, "info", "Routing workspace command to SK Shell.")
+        await handleShell(tabId, input)
+      } else if (type === "nodejs" && isWorkspaceCommand(input)) {
+        addLine(tabId, "info", "Routing workspace command to SK Shell.")
+        await handleShell(tabId, input)
+      } else if (type === "java" && isWorkspaceCommand(input)) {
+        addLine(tabId, "info", "Routing workspace command to SK Shell.")
+        await handleShell(tabId, input)
+      } else if (type === "python") await handlePython(tabId, input)
       else if (type === "nodejs") await handleNodeJs(tabId, input)
       else if (type === "java") await handleJava(tabId, input)
       else if (type === "ai") await handleAI(tabId, input)
