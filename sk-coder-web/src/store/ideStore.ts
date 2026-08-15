@@ -45,7 +45,7 @@ const DEFAULT_SETTINGS: Settings = {
     port: "3000",
   },
   piston: {
-    serverUrl: "https://emkc.org/api/v2/piston",
+    serverUrl: "",
   },
   backend: {
     url: "",

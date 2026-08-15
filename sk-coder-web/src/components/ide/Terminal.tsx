@@ -538,6 +538,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
 
   async function handlePython(tabId: string, code: string) {
     const res = await execute("python", code)
+    addLine(tabId, "info", `Runtime: ${res.tier} — ${res.capability}`)
     if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
     if (res.stderr) {
       addLines(tabId, "error", res.stderr.trimEnd())
@@ -566,6 +567,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
       execCode = node.content || ""
     }
     const res = await execute("node", execCode)
+    addLine(tabId, "info", `Runtime: ${res.tier} — ${res.capability}`)
     if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
     if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
@@ -574,6 +576,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
 
   async function handleJava(tabId: string, code: string) {
     const res = await execute("java", code)
+    addLine(tabId, "info", `Runtime: ${res.tier} — ${res.capability}`)
     if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
     if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")

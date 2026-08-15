@@ -53,6 +53,8 @@ export default function TopBar() {
         return
       }
 
+      addTerminalLine({ type: "info", content: `Runtime: ${result.executor} — ${result.capability}` })
+
       if (result.stdout) {
         for (const line of result.stdout.split("\n")) {
           if (line.trim()) addTerminalLine({ type: "output", content: line })

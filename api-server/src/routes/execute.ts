@@ -2,16 +2,17 @@ import { Router } from "express"
 import { createWorkspaceSession, runCodeInWorkspace, runWorkspaceCommand, syncWorkspaceFiles, workspaceStatus } from "../lib/sessionManager.js"
 
 const router = Router()
+const primaryRuntimeNames = ["node", "typescript", "python", "java", "c", "cpp", "kotlin", "rust", "go", "php", "ruby", "bash"]
 
 router.get("/execute/runtimes", async (_req, res) => {
   const status = await workspaceStatus()
-  res.json({ runtimes: ["node", "python", "bash", "java", "c", "cpp", "rust", "go"].map((name) => ({ name, available: status.ready })), status })
+  res.json({ runtimes: primaryRuntimeNames.map((name) => ({ name, available: status.ready, tier: "oracle-workspace" })), status })
 })
 
 router.post("/execute/sessions", async (_req, res) => {
   try {
     const session = await createWorkspaceSession()
-    res.status(201).json({ id: session.id, cwd: "/", expiresInHours: 72 })
+    res.status(201).json({ id: session.id, cwd: "/", expiresInHours: 72, tier: "oracle-workspace" })
   } catch (error) {
     res.status(503).json({ error: error instanceof Error ? error.message : "Session service unavailable." })
   }
@@ -35,9 +36,9 @@ router.post("/execute/sessions/:id/command", async (req, res) => {
   const { command, cwd } = req.body as { command?: string; cwd?: string }
   if (!command?.trim()) return res.status(400).json({ error: "command is required" })
   try {
-    res.json(await runWorkspaceCommand(req.params.id, command, cwd || "/"))
+    res.json({ ...(await runWorkspaceCommand(req.params.id, command, cwd || "/")), tier: "oracle-workspace" })
   } catch (error) {
-    res.status(400).json({ stdout: "", stderr: error instanceof Error ? error.message : "Command failed.", exitCode: 1, executionTime: 0 })
+    res.status(400).json({ stdout: "", stderr: error instanceof Error ? error.message : "Command failed.", exitCode: 1, executionTime: 0, tier: "oracle-workspace" })
   }
 })
 
@@ -46,9 +47,9 @@ router.post("/execute", async (req, res) => {
   if (!language || code === undefined) return res.status(400).json({ error: "language and code are required" })
   try {
     const session = sessionId ? { id: sessionId } : await createWorkspaceSession()
-    res.json({ ...(await runCodeInWorkspace(session.id, language, code)), sessionId: session.id })
+    res.json({ ...(await runCodeInWorkspace(session.id, language, code)), sessionId: session.id, tier: "oracle-workspace" })
   } catch (error) {
-    res.status(503).json({ stdout: "", stderr: error instanceof Error ? error.message : "Execution service unavailable.", exitCode: 1, executionTime: 0, error: "runtime-unavailable" })
+    res.status(503).json({ stdout: "", stderr: error instanceof Error ? error.message : "Execution service unavailable.", exitCode: 1, executionTime: 0, error: "runtime-unavailable", tier: "unavailable" })
   }
 })
 

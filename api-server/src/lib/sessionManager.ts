@@ -118,10 +118,12 @@ export async function runCodeInWorkspace(id: string, language: string, code: str
   const hostRunPath = resolve(session.workspacePath, runPath)
   const config: Record<string, { filename: string; command: string }> = {
     python: { filename: "main.py", command: "python3 main.py" }, py: { filename: "main.py", command: "python3 main.py" },
-    node: { filename: "main.js", command: "node main.js" }, nodejs: { filename: "main.js", command: "node main.js" }, javascript: { filename: "main.js", command: "node main.js" }, js: { filename: "main.js", command: "node main.js" },
+    node: { filename: "main.js", command: "node main.js" }, nodejs: { filename: "main.js", command: "node main.js" }, javascript: { filename: "main.js", command: "node main.js" }, js: { filename: "main.js", command: "node main.js" }, mjs: { filename: "main.mjs", command: "node main.mjs" }, cjs: { filename: "main.cjs", command: "node main.cjs" },
+    typescript: { filename: "main.ts", command: "tsx main.ts" }, ts: { filename: "main.ts", command: "tsx main.ts" }, tsx: { filename: "main.tsx", command: "tsx main.tsx" },
     bash: { filename: "main.sh", command: "bash main.sh" }, shell: { filename: "main.sh", command: "bash main.sh" },
     java: { filename: "Main.java", command: "javac Main.java && java Main" }, c: { filename: "main.c", command: "gcc main.c -O2 -o main && ./main" }, cpp: { filename: "main.cpp", command: "g++ main.cpp -O2 -o main && ./main" },
-    rust: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, go: { filename: "main.go", command: "go run main.go" },
+    cc: { filename: "main.cpp", command: "g++ main.cpp -O2 -o main && ./main" }, kotlin: { filename: "Main.kt", command: "kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar" }, kt: { filename: "Main.kt", command: "kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar" },
+    rust: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, rs: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, go: { filename: "main.go", command: "go run main.go" }, php: { filename: "main.php", command: "php main.php" }, ruby: { filename: "main.rb", command: "ruby main.rb" }, rb: { filename: "main.rb", command: "ruby main.rb" },
   }
   const selected = config[language.toLowerCase()]
   if (!selected) throw new Error(`Unsupported runtime: ${language}`)
