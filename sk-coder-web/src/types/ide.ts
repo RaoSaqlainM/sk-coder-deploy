@@ -18,7 +18,7 @@ export type Tab = {
   language: string
 }
 
-export type TerminalType = "python" | "javascript" | "node" | "cpp" | "shell" | "git"
+export type TerminalType = "python" | "javascript" | "node" | "nodejs" | "java" | "cpp" | "shell" | "bash" | "git" | "ai" | "output"
 
 export type TerminalLine = {
   id: string
@@ -55,6 +55,9 @@ export type ErrorEntry = {
   message: string
   severity: "error" | "warning" | "info"
   file?: string
+  filename?: string
+  code?: string
+  suggestion?: string
 }
 
 export type Settings = {

@@ -43,11 +43,11 @@ export async function runPython(
   try {
     const py = await ensurePyodide();
 
-    py.setStdout({ write: (text: string) => {
+    py.setStdout({ batched: (text: string) => {
       outputs.push(text);
       onOutput?.(text, "output");
     }});
-    py.setStderr({ write: (text: string) => {
+    py.setStderr({ batched: (text: string) => {
       errors.push(text);
       onOutput?.(text, "error");
     }});

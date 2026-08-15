@@ -27,8 +27,7 @@ ${html}
   const origConsole = window.console;
   const log = (...a) => { origConsole.log(...a); window.parent.postMessage({ type: 'console', level: 'log', args: a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)) }, '*') };
   const err = (...a) => { origConsole.error(...a); window.parent.postMessage({ type: 'console', level: 'error', args: a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)) }, '*') };
-  window.console = { ...origConsole, log, error, warn: log, info: log };
-  window.addEventListener('error', (e) => { window.parent.postMessage({ type: 'error', message: e.message, filename: e.filename, line: e.lineno }, '*') });
+  window.console = { ...origConsole, log, error: err, warn: log, info: log };
 })();
 ${js}
 </script>

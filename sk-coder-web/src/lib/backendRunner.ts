@@ -1,5 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL || "/api"
-const WS_BASE = import.meta.env.VITE_WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/ws`
+const WS_BASE = import.meta.env.VITE_WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/ws/terminal`
 
 export interface ExecResult {
   stdout: string
@@ -7,9 +7,10 @@ export interface ExecResult {
   exitCode: number
   executionTime: number
   error?: string
+  sessionId?: string
 }
 
-let _available: boolean | null = null
+export type WorkspaceFilePayload = { path: string; content: string }
 
 function getDeviceId(): string {
   let id = localStorage.getItem("sk-device-id")
@@ -21,97 +22,81 @@ function getDeviceId(): string {
 }
 
 function getHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "X-Device-Id": getDeviceId(),
-  }
+  return { "Content-Type": "application/json", "X-Device-Id": getDeviceId() }
 }
 
 export async function isBackendAvailable(): Promise<boolean> {
-  if (_available !== null) return _available
   try {
-    const r = await fetch(`${BASE}/healthz`, { signal: AbortSignal.timeout(3000), headers: getHeaders() })
-    _available = r.ok
+    const response = await fetch(`${BASE}/healthz`, { signal: AbortSignal.timeout(3000), headers: getHeaders() })
+    if (!response.ok) return false
+    const data = await response.json() as { status?: string }
+    return data.status === "ok"
   } catch {
-    _available = false
+    return false
   }
-  return _available
 }
 
-export function resetAvailability() {
-  _available = null
-}
-
-export async function runOnBackend(
-  language: string,
-  code: string,
-  opts?: { cwd?: string }
-): Promise<ExecResult> {
+export async function runOnBackend(language: string, code: string, opts?: { sessionId?: string }): Promise<ExecResult> {
   try {
-    const res = await fetch(`${BASE}/execute`, {
+    const response = await fetch(`${BASE}/execute`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({ language, code, ...opts }),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(125000),
     })
-    if (!res.ok) {
-      const body = await res.text().catch(() => res.statusText)
-      return { stdout: "", stderr: body, exitCode: 1, executionTime: 0, error: body }
-    }
-    return await res.json() as ExecResult
-  } catch (e) {
-    return { stdout: "", stderr: String(e), exitCode: 1, executionTime: 0, error: String(e) }
+    const data = await response.json().catch(() => null) as ExecResult | null
+    return data ?? { stdout: "", stderr: response.statusText, exitCode: 1, executionTime: 0, error: response.statusText }
+  } catch (error) {
+    return { stdout: "", stderr: String(error), exitCode: 1, executionTime: 0, error: String(error) }
   }
 }
 
-export interface RuntimeInfo {
-  name: string
-  available: boolean
+export async function syncWorkspaceFiles(sessionId: string, files: WorkspaceFilePayload[]) {
+  const response = await fetch(`${BASE}/execute/sessions/${encodeURIComponent(sessionId)}/files`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ files }),
+    signal: AbortSignal.timeout(30000),
+  })
+  if (!response.ok) throw new Error((await response.json().catch(() => ({ error: response.statusText })) as { error?: string }).error || response.statusText)
 }
+
+export interface RuntimeInfo { name: string; available: boolean }
 
 export async function getAvailableRuntimes(): Promise<RuntimeInfo[]> {
   try {
-    const res = await fetch(`${BASE}/execute/runtimes`, { signal: AbortSignal.timeout(5000), headers: getHeaders() })
-    if (!res.ok) return []
-    const data = await res.json() as { runtimes: RuntimeInfo[] }
-    return data.runtimes ?? []
+    const response = await fetch(`${BASE}/execute/runtimes`, { signal: AbortSignal.timeout(5000), headers: getHeaders() })
+    if (!response.ok) return []
+    return ((await response.json()) as { runtimes?: RuntimeInfo[] }).runtimes ?? []
   } catch {
     return []
   }
 }
 
-export function createTerminalWebSocket(
-  sessionId: string,
-  onStdout: (data: string) => void,
-  onStderr: (data: string) => void,
-  onExit: (code: number) => void,
-  onError: (err: string) => void
-): { send: (type: string, data?: string) => void; close: () => void } {
-  const ws = new WebSocket(WS_BASE, undefined)
+export type TerminalSocketHandlers = {
+  onReady: (sessionId: string) => void
+  onStdout: (data: string) => void
+  onStderr: (data: string) => void
+  onExit: (code: number) => void
+  onError: (error: string) => void
+}
 
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ sessionId, type: "hello", deviceId: getDeviceId() }))
-  }
-
-  ws.onmessage = (e) => {
+export function createTerminalWebSocket(handlers: TerminalSocketHandlers) {
+  const ws = new WebSocket(WS_BASE)
+  ws.onmessage = (event) => {
     try {
-      const msg = JSON.parse(e.data as string) as {
-        sessionId: string; type: string; data?: string; code?: number
-      }
-      if (msg.sessionId !== sessionId) return
-      if (msg.type === "stdout") onStdout(msg.data ?? "")
-      else if (msg.type === "stderr") onStderr(msg.data ?? "")
-      else if (msg.type === "exit") onExit(msg.code ?? 0)
-      else if (msg.type === "error") onError(msg.data ?? "unknown error")
-    } catch {}
+      const message = JSON.parse(event.data as string) as { type?: string; data?: string; code?: number; sessionId?: string }
+      if (message.type === "ready" && message.sessionId) handlers.onReady(message.sessionId)
+      else if (message.type === "stdout") handlers.onStdout(message.data ?? "")
+      else if (message.type === "stderr") handlers.onStderr(message.data ?? "")
+      else if (message.type === "exit") handlers.onExit(message.code ?? 0)
+    } catch {
+      handlers.onError("Invalid terminal response.")
+    }
   }
-
-  ws.onerror = () => onError("WebSocket connection failed")
-
+  ws.onerror = () => handlers.onError("WebSocket connection failed")
   return {
-    send: (type, data) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ sessionId, type, data: data ?? "" }))
-    },
+    sendCommand: (command: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "command", command })) },
     close: () => ws.close(),
   }
 }

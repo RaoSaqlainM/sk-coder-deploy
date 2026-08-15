@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useIDEStore } from "@/store/ideStore"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
-import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission, type PermissionDecision } from "@/lib/permissionPolicy"
+import { actionLabel, buildAgentInstruction, extractAgentProposal, type AgentAction } from "@/lib/aiAgent"
 import type { AIChatMessage } from "@/types/ide"
 
 declare global {
@@ -61,11 +61,10 @@ async function sendViaPuter(prompt: string): Promise<string> {
 export default function AIChatPanel() {
   const {
     aiChatMessages, aiTyping, settings, addAIChatMessage, clearAIChat,
-    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree,
+    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree, addFile, updateFileContent, deleteNode, setTerminalBridgeCmd, setActivePanel,
   } = useIDEStore()
   const [input, setInput] = useState("")
-  const [permissionState, setPermissionState] = useState<{ kind: string; scope: string; resolve: (value: PermissionDecision) => void } | null>(null)
-  const [permissionNotice, setPermissionNotice] = useState<string | null>(null)
+  const [proposals, setProposals] = useState<AgentAction[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -77,10 +76,37 @@ export default function AIChatPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [aiChatMessages, aiTyping])
 
-  function requestPermission(kind: string, scope: string): Promise<PermissionDecision> {
-    return new Promise((resolve) => {
-      setPermissionState({ kind, scope, resolve: (value) => resolve(value) })
-    })
+  function deliverAIReply(reply: string) {
+    const { explanation, actions } = extractAgentProposal(reply)
+    addAIChatMessage({ role: "assistant", content: explanation || (actions.length ? "I prepared actions for your review." : reply) })
+    if (actions.length) setProposals((previous) => [...previous, ...actions])
+  }
+
+  function removeProposal(id: string) {
+    setProposals((previous) => previous.filter((proposal) => proposal.id !== id))
+  }
+
+  function approveProposal(action: AgentAction) {
+    if (action.type === "write") {
+      const exists = getAllPaths(fileTree).includes(action.path)
+      if (exists) updateFileContent(action.path, action.content)
+      else {
+        const separator = action.path.lastIndexOf("/")
+        const parent = separator <= 0 ? "/" : action.path.slice(0, separator)
+        const name = action.path.slice(separator + 1)
+        addFile(parent, name, "file", action.content)
+      }
+    } else if (action.type === "create_folder") {
+      const separator = action.path.lastIndexOf("/")
+      addFile(separator <= 0 ? "/" : action.path.slice(0, separator), action.path.slice(separator + 1), "folder")
+    } else if (action.type === "delete") {
+      deleteNode(action.path)
+    } else if (action.type === "run") {
+      setTerminalBridgeCmd({ cmd: action.command, targetType: "shell" })
+    } else if (action.type === "preview") {
+      setActivePanel("preview")
+    }
+    removeProposal(action.id)
   }
 
   async function handleSend() {
@@ -92,22 +118,6 @@ export default function AIChatPanel() {
       return
     }
 
-    const action = classifyPermissionRequest(trimmed)
-    const scope = activeFile?.path || "the current workspace"
-    const needsPermission = action ? shouldPromptForPermission(action, scope, true) : false
-
-    if (needsPermission) {
-      const decision = await requestPermission(formatPermissionLabel(action), scope)
-      if (decision === "deny") {
-        addAIChatMessage({ role: "assistant", content: "Permission denied. No changes or commands were executed." })
-        setInput("")
-        if (textareaRef.current) textareaRef.current.style.height = "auto"
-        return
-      }
-      savePermissionGrant(action!, scope, decision)
-      setPermissionNotice(`Permission ${decision === "allow-scope" ? "granted for this workspace scope" : "granted for this request"} on ${scope}`)
-    }
-
     setInput("")
     if (textareaRef.current) textareaRef.current.style.height = "auto"
     addAIChatMessage({ role: "user", content: trimmed })
@@ -115,20 +125,20 @@ export default function AIChatPanel() {
 
     try {
       if (usePuter) {
-        const systemPrompt = buildSystemPrompt({
+        const systemPrompt = `${buildSystemPrompt({
           activeFilePath: activeFile?.path,
           activeFileContent: settings.ai.autoContext ? activeFile?.content : undefined,
           fileTree: getAllPaths(fileTree),
-        })
+        })}\n\n${buildAgentInstruction()}`
         const fullPrompt = `${systemPrompt}\n\nUser: ${trimmed}`
         const reply = await sendViaPuter(fullPrompt)
-        addAIChatMessage({ role: "assistant", content: reply })
+        deliverAIReply(reply)
       } else {
-        const systemPrompt = buildSystemPrompt({
+        const systemPrompt = `${buildSystemPrompt({
           activeFilePath: activeFile?.path,
           activeFileContent: settings.ai.autoContext ? activeFile?.content : undefined,
           fileTree: getAllPaths(fileTree),
-        })
+        })}\n\n${buildAgentInstruction()}`
 
         const messages: AIChatMessage[] = [
           ...aiChatMessages,
@@ -152,7 +162,7 @@ export default function AIChatPanel() {
         } else if (res.error) {
           addAIChatMessage({ role: "assistant", content: `Something went wrong: ${res.error}` })
         } else {
-          addAIChatMessage({ role: "assistant", content: res.content })
+          deliverAIReply(res.content)
         }
       }
     } catch (e) {
@@ -220,23 +230,18 @@ export default function AIChatPanel() {
         </div>
       </div>
 
-      {permissionNotice && (
-        <div style={{ margin: "0.75rem", padding: "0.7rem 0.8rem", borderRadius: 10, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.22)", fontSize: 11, color: "var(--text-primary)" }}>
-          {permissionNotice}
-        </div>
-      )}
-
-      {permissionState && (
-        <div style={{ margin: "0.75rem", padding: "0.85rem", borderRadius: 12, background: "rgba(167,139,250,0.14)", border: "1px solid rgba(167,139,250,0.28)", display: "grid", gap: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 12 }}>Permission request</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            SK Coder wants permission to {permissionState.kind} {permissionState.scope || "the current workspace"}.
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-primary" style={{ fontSize: 11, padding: "0.45rem 0.75rem" }} onClick={() => { permissionState.resolve("allow-once"); setPermissionState(null) }}>Allow once</button>
-            <button className="btn btn-ghost" style={{ fontSize: 11, padding: "0.45rem 0.75rem" }} onClick={() => { permissionState.resolve("deny"); setPermissionState(null) }}>Deny</button>
-            <button className="btn btn-secondary" style={{ fontSize: 11, padding: "0.45rem 0.75rem" }} onClick={() => { permissionState.resolve("allow-scope"); setPermissionState(null) }}>Allow unlimited</button>
-          </div>
+      {proposals.length > 0 && (
+        <div style={{ margin: "0.75rem", display: "grid", gap: 8 }}>
+          {proposals.map((proposal) => (
+            <div key={proposal.id} style={{ padding: "0.75rem", borderRadius: 10, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.28)", display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700 }}>{actionLabel(proposal)}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>This action has not been applied.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-primary" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => approveProposal(proposal)}>Approve</button>
+                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => removeProposal(proposal.id)}>Decline</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

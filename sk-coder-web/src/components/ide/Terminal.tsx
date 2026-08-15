@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useIDEStore } from "@/store/ideStore"
 import { execute } from "@/lib/executorChain"
+import { createTerminalWebSocket, syncWorkspaceFiles, type WorkspaceFilePayload } from "@/lib/backendRunner"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy"
@@ -12,11 +13,6 @@ import type { FileNode, AIChatMessage } from "@/types/ide"
 
 declare global {
   interface Window {
-    loadPyodide?: (opts: { indexURL: string }) => Promise<{
-      runPythonAsync: (code: string) => Promise<unknown>
-      globals: { get: (k: string) => unknown }
-    }>
-    _pyodide?: Awaited<ReturnType<NonNullable<Window["loadPyodide"]>>>
     puter?: {
       auth: { signIn: () => Promise<void>; isSignedIn: () => boolean }
       ai: {
@@ -26,7 +22,7 @@ declare global {
   }
 }
 
-type TermType = "shell" | "python" | "nodejs" | "ai"
+type TermType = "shell" | "python" | "nodejs" | "java" | "ai"
 
 type TermLine = {
   id: string
@@ -58,6 +54,7 @@ function initState(type: TermType): TabState {
     shell: "SK Shell — ls, cd, cat, run, mkdir, touch, help",
     python: "Python 3 — Ready",
     nodejs: "Node.js — Ready",
+    java: "Java — Ready",
     ai: "SK AI — Ask questions or get code help",
   }
   return {
@@ -95,6 +92,15 @@ function getChildrenAt(tree: FileNode[], path: string): FileNode[] {
   return node?.children || []
 }
 
+function collectWorkspaceFiles(nodes: FileNode[]): WorkspaceFilePayload[] {
+  const files: WorkspaceFilePayload[] = []
+  for (const node of nodes) {
+    if (node.type === "file") files.push({ path: node.path, content: node.content ?? "" })
+    if (node.children) files.push(...collectWorkspaceFiles(node.children))
+  }
+  return files
+}
+
 function resolvePath(cwd: string, input: string): string {
   if (!input || input === "~") return "/"
   if (input.startsWith("/")) return input.replace(/\/$/, "") || "/"
@@ -110,6 +116,7 @@ const TERM_COLORS: Record<TermType, string> = {
   shell: "#4eaa25",
   python: "#3572a5",
   nodejs: "#68a063",
+  java: "#f89820",
   ai: "#a78bfa",
 }
 
@@ -117,6 +124,7 @@ const TERM_LABELS: Record<TermType, string> = {
   shell: "SK Shell",
   python: "Python 3",
   nodejs: "Node.js",
+  java: "Java",
   ai: "AI",
 }
 
@@ -124,6 +132,7 @@ const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
   { type: "shell", label: "SK Shell", desc: "Workspace filesystem · execute any file" },
   { type: "python", label: "Python 3", desc: "Execute Python code" },
   { type: "nodejs", label: "Node.js", desc: "Execute JavaScript/Node.js code" },
+  { type: "java", label: "Java", desc: "Compile and execute Java code" },
   { type: "ai", label: "AI", desc: "Ask code questions · get help" },
 ]
 
@@ -141,6 +150,11 @@ function TermIcon({ type }: { type: TermType }) {
   if (type === "nodejs") return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+  )
+  if (type === "java") return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 3c0 2 3 2 3 4s-3 2-3 4 3 2 3 4-3 2-3 4"/><path d="M14 6c2 1 3 2 3 4s-1 3-3 4"/>
     </svg>
   )
   if (type === "ai") return (
@@ -173,6 +187,7 @@ const DEFAULT_TABS: TabDef[] = [
   { id: "shell-1", type: "shell", label: "SK Shell" },
   { id: "python-1", type: "python", label: "Python 3" },
   { id: "nodejs-1", type: "nodejs", label: "Node.js" },
+  { id: "java-1", type: "java", label: "Java" },
   { id: "ai-1", type: "ai", label: "AI" },
 ]
 
@@ -180,6 +195,7 @@ const DEFAULT_STATES: Record<string, TabState> = {
   "shell-1": initState("shell"),
   "python-1": initState("python"),
   "nodejs-1": initState("nodejs"),
+  "java-1": initState("java"),
   "ai-1": initState("ai"),
 }
 
@@ -210,6 +226,9 @@ export default function MultiTerminal() {
 
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const terminalSocketRef = useRef<ReturnType<typeof createTerminalWebSocket> | null>(null)
+  const workspaceSessionIdRef = useRef<string | null>(null)
+  const activeShellTabRef = useRef("shell-1")
 
   const activeState = tabStates[activeTab] ?? initState("shell")
   const activeType = tabs.find((t) => t.id === activeTab)?.type ?? "shell"
@@ -231,6 +250,26 @@ export default function MultiTerminal() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [activeTab])
+
+  useEffect(() => {
+    if (!settings.backend.enabled) return
+    const socket = createTerminalWebSocket({
+      onReady: (sessionId) => {
+        workspaceSessionIdRef.current = sessionId
+        addLine(activeShellTabRef.current, "success", "Connected to isolated workspace session.")
+      },
+      onStdout: (data) => addLines(activeShellTabRef.current, "output", data),
+      onStderr: (data) => addLines(activeShellTabRef.current, "error", data),
+      onExit: (code) => addLine(activeShellTabRef.current, "info", `Process exited with code ${code}`),
+      onError: () => { workspaceSessionIdRef.current = null },
+    })
+    terminalSocketRef.current = socket
+    return () => {
+      terminalSocketRef.current = null
+      workspaceSessionIdRef.current = null
+      socket.close()
+    }
+  }, [settings.backend.enabled])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -349,6 +388,17 @@ export default function MultiTerminal() {
   async function handleShell(tabId: string, input: string) {
     const state = tabStates[tabId]
     const cwd = state?.cwd || "/"
+    if (workspaceSessionIdRef.current && terminalSocketRef.current) {
+      try {
+        activeShellTabRef.current = tabId
+        await syncWorkspaceFiles(workspaceSessionIdRef.current, collectWorkspaceFiles(fileTree))
+        terminalSocketRef.current.sendCommand(input)
+        return
+      } catch (error) {
+        workspaceSessionIdRef.current = null
+        addLine(tabId, "error", error instanceof Error ? error.message : "Workspace synchronization failed.")
+      }
+    }
     const parts = input.trim().split(/\s+/)
     const cmd = parts[0].toLowerCase()
     const args = parts.slice(1)
@@ -431,7 +481,7 @@ export default function MultiTerminal() {
       return
     }
 
-    if (cmd === "run" || cmd === "python" || cmd === "node") {
+    if (cmd === "run" || cmd === "python" || cmd === "node" || cmd === "java") {
       const filename = args[0]
       if (!filename) { addLine(tabId, "error", `${cmd}: specify a filename`); return }
       const path = resolvePath(cwd, filename)
@@ -446,6 +496,8 @@ export default function MultiTerminal() {
         await handlePython(tabId, code)
       } else if (cmd === "node" || (cmd === "run" && ["js", "jsx", "ts", "tsx", "mjs", "cjs"].includes(ext))) {
         await handleNodeJs(tabId, code)
+      } else if (cmd === "java" || (cmd === "run" && ext === "java")) {
+        await handleJava(tabId, code)
       } else if (cmd === "run") {
         const res = await execute(ext, code)
         if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
@@ -491,6 +543,14 @@ export default function MultiTerminal() {
       execCode = node.content || ""
     }
     const res = await execute("node", execCode)
+    if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
+    if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
+    if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
+    if (res.executionTime > 0) addLine(tabId, "info", `⏱ ${res.executionTime}ms | exit ${res.exitCode}`)
+  }
+
+  async function handleJava(tabId: string, code: string) {
+    const res = await execute("java", code)
     if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
     if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
@@ -562,7 +622,7 @@ export default function MultiTerminal() {
     const type = tabs.find((t) => t.id === tabId)?.type || "shell"
     const newHistory = [input, ...(state.history || []).slice(0, 99)]
     updateState(tabId, { input: "", history: newHistory, histIdx: -1 })
-    const prompts: Record<TermType, string> = { shell: `[${state.cwd || "/"}]$`, python: ">>>", nodejs: ">", ai: "you>" }
+    const prompts: Record<TermType, string> = { shell: `[${state.cwd || "/"}]$`, python: ">>>", nodejs: ">", java: "java>", ai: "you>" }
     if (type === "shell" && input === "help") {
       addLine(tabId, "info", "Tip: right-click a file to open it in the terminal or run it directly.")
     }
@@ -573,6 +633,7 @@ export default function MultiTerminal() {
       if (type === "shell") await handleShell(tabId, input)
       else if (type === "python") await handlePython(tabId, input)
       else if (type === "nodejs") await handleNodeJs(tabId, input)
+      else if (type === "java") await handleJava(tabId, input)
       else if (type === "ai") await handleAI(tabId, input)
     } finally {
       setTabStates((prev) => prev[tabId] ? { ...prev, [tabId]: { ...prev[tabId], running: false } } : prev)
@@ -615,6 +676,7 @@ export default function MultiTerminal() {
     shell: `${activeState.cwd || "/"}$`,
     python: ">>>",
     nodejs: ">",
+    java: "java>",
     ai: "ask>",
   }
 
@@ -622,6 +684,7 @@ export default function MultiTerminal() {
     shell: "ls · cd <dir> · run <file> · mkdir · help  (↑↓ history, Tab complete)",
     python: "print('hello')  • import math  • any Python 3 code",
     nodejs: "console.log('hello')  • require('fs')  • any Node.js code",
+    java: "class Main { public static void main(String[] args) { System.out.println(\"hello\"); } }",
     ai: "Ask a coding question or request help with code",
   }
 

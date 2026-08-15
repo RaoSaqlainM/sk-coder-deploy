@@ -9,7 +9,8 @@ interface PreviewResult {
 }
 
 export default function SmartPreview() {
-  const { activeFile, previewContent, previewResult } = useIDEStore()
+  const { getActiveFile, previewContent, previewResult } = useIDEStore()
+  const activeFile = getActiveFile()
   const [displayContent, setDisplayContent] = useState<PreviewResult | null>(null)
 
   useEffect(() => {

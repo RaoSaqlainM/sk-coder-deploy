@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { ChevronRight } from "lucide-react"
 import { useIDEStore } from "@/store/ideStore"
 import { toast } from "sonner"
+import type { TerminalType } from "@/types/ide"
 
 interface TerminalOption {
   id: string
@@ -56,7 +57,7 @@ interface TerminalSelectorProps {
 export default function TerminalSelector({ onSelect }: TerminalSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const { setTerminalType, addNewTerminalTab } = useIDEStore()
+  const { setTerminalType, setActivePanel } = useIDEStore()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -70,8 +71,8 @@ export default function TerminalSelector({ onSelect }: TerminalSelectorProps) {
   }, [])
 
   const handleSelect = (option: TerminalOption) => {
-    addNewTerminalTab?.(option.id)
-    setTerminalType?.(option.id)
+    setTerminalType(option.id as TerminalType)
+    setActivePanel("terminal")
     toast.success(`Opened ${option.label}`)
     setIsOpen(false)
     onSelect?.(option.id)

@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { persist, createJSONStorage } from "zustand/middleware"
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware"
 import { createProject, loadProject, saveProject } from "../lib/projectApi"
 import type {
   FileNode, Tab, TerminalType, TerminalLine, AIChatMessage, ActivePanel, Settings, ErrorEntry,
@@ -54,9 +54,70 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 const FILE_CONTENT_PREFIX = "sk-file:"
+const STORAGE_DB_NAME = "sk-coder-workspace-v1"
+const STORAGE_STORE_NAME = "values"
+
+function openStorageDatabase(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === "undefined") return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const request = indexedDB.open(STORAGE_DB_NAME, 1)
+    request.onupgradeneeded = () => {
+      const database = request.result
+      if (!database.objectStoreNames.contains(STORAGE_STORE_NAME)) database.createObjectStore(STORAGE_STORE_NAME)
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => resolve(null)
+  })
+}
+
+async function getIndexedValue(key: string): Promise<string | null> {
+  const database = await openStorageDatabase()
+  if (!database) return null
+  return new Promise((resolve) => {
+    const request = database.transaction(STORAGE_STORE_NAME, "readonly").objectStore(STORAGE_STORE_NAME).get(key)
+    request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null)
+    request.onerror = () => resolve(null)
+  })
+}
+
+async function setIndexedValue(key: string, value: string): Promise<void> {
+  const database = await openStorageDatabase()
+  if (!database) return
+  await new Promise<void>((resolve) => {
+    const request = database.transaction(STORAGE_STORE_NAME, "readwrite").objectStore(STORAGE_STORE_NAME).put(value, key)
+    request.onsuccess = () => resolve()
+    request.onerror = () => resolve()
+  })
+}
+
+async function deleteIndexedValue(key: string): Promise<void> {
+  const database = await openStorageDatabase()
+  if (!database) return
+  await new Promise<void>((resolve) => {
+    const request = database.transaction(STORAGE_STORE_NAME, "readwrite").objectStore(STORAGE_STORE_NAME).delete(key)
+    request.onsuccess = () => resolve()
+    request.onerror = () => resolve()
+  })
+}
+
+const resilientStorage: StateStorage = {
+  getItem: async (name) => localStorage.getItem(name) ?? await getIndexedValue(name),
+  setItem: async (name, value) => {
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      await setIndexedValue(name, value)
+    }
+  },
+  removeItem: async (name) => {
+    try { localStorage.removeItem(name) } catch {}
+    await deleteIndexedValue(name)
+  },
+}
 
 function saveFileContent(path: string, content: string) {
   try { localStorage.setItem(FILE_CONTENT_PREFIX + path, content) } catch { }
+  void setIndexedValue(FILE_CONTENT_PREFIX + path, content)
 }
 
 function loadFileContent(path: string): string {
@@ -64,13 +125,14 @@ function loadFileContent(path: string): string {
 }
 
 function deleteFileContent(path: string) {
-  localStorage.removeItem(FILE_CONTENT_PREFIX + path)
+  try { localStorage.removeItem(FILE_CONTENT_PREFIX + path) } catch { }
+  void deleteIndexedValue(FILE_CONTENT_PREFIX + path)
 }
 
 function renameFileContent(oldPath: string, newPath: string) {
   const content = localStorage.getItem(FILE_CONTENT_PREFIX + oldPath) ?? ""
-  localStorage.removeItem(FILE_CONTENT_PREFIX + oldPath)
-  try { localStorage.setItem(FILE_CONTENT_PREFIX + newPath, content) } catch { }
+  deleteFileContent(oldPath)
+  saveFileContent(newPath, content)
 }
 
 function saveAllFileContents(nodes: FileNode[]) {
@@ -547,7 +609,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(
     }),
     {
       name: "sk-coder-ide-v3",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         fileTree: stripContent(state.fileTree),
         openTabs: state.openTabs,
@@ -555,7 +617,6 @@ export const useIDEStore = create<IDEState & IDEActions>()(
         expandedFolders: Array.from(state.expandedFolders),
         settings: state.settings,
         terminalType: state.terminalType,
-        aiChatMessages: state.aiChatMessages,
       }),
       merge: (persisted: unknown, current) => {
         const p = persisted as Partial<IDEState & { expandedFolders: string[] }>
@@ -575,7 +636,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(
           contextMenu: null,
           aiTyping: false,
           isRunning: false,
-          aiChatMessages: Array.isArray(p.aiChatMessages) ? p.aiChatMessages : [],
+          aiChatMessages: Array.isArray(p.aiChatMessages) ? p.aiChatMessages.slice(-30) : [],
         }
       },
     }

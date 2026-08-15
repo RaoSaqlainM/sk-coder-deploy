@@ -1,0 +1,40 @@
+services:
+  runtime:
+    build:
+      context: ./runtime
+    image: ${RUNTIME_IMAGE:-sk-coder-runtime:latest}
+    command: ["true"]
+
+  backend:
+    build:
+      context: ./api-server
+    environment:
+      PORT: 3001
+      RUNTIME_IMAGE: ${RUNTIME_IMAGE:-sk-coder-runtime:latest}
+      WORKSPACE_ROOT: /var/lib/sk-coder/workspaces
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-72}
+      SESSION_MAX_BYTES: ${SESSION_MAX_BYTES:-5368709120}
+      WORKSPACE_MAX_BYTES: ${WORKSPACE_MAX_BYTES:-107374182400}
+      SESSION_MAX_COUNT: ${SESSION_MAX_COUNT:-50}
+      COMMAND_TIMEOUT_MS: ${COMMAND_TIMEOUT_MS:-120000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - workspace-data:/var/lib/sk-coder/workspaces
+    depends_on:
+      runtime:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./sk-coder-web
+      dockerfile: Dockerfile
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  workspace-data:
