@@ -1,0 +1,64 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "envPrefix": "VITE_",
+  "env": {
+    "VITE_API_URL": {
+      "description": "Backend API URL for code execution",
+      "example": "https://api.skcoder.app"
+    },
+    "VITE_GITHUB_CLIENT_ID": {
+      "description": "GitHub OAuth Client ID",
+      "example": "your-github-client-id"
+    },
+    "VITE_OPENAI_API_KEY": {
+      "description": "OpenAI API Key (optional, user can add their own)",
+      "example": "sk-..."
+    }
+  },
+  "functions": [
+    {
+      "source": "api/execute",
+      "destination": "/api/execute"
+    },
+    {
+      "source": "api/projects",
+      "destination": "/api/projects"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/USER_GUIDE.md",
+      "permanent": false
+    },
+    {
+      "source": "/privacy",
+      "destination": "/PRIVACY_POLICY.md",
+      "permanent": false
+    },
+    {
+      "source": "/terms",
+      "destination": "/TERMS_OF_SERVICE.md",
+      "permanent": false
+    }
+  ]
+}
