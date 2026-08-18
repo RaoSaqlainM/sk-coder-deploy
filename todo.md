@@ -12,3 +12,31 @@
 - [x] Build a per-language, publicly documented fallback matrix that runs source code only and never claims shell, package, or project support it cannot provide.
 - [x] Expand runtime capability and provider-status reporting so the UI distinguishes primary backend, public fallback, browser-only Python fallback, and unavailable functionality.
 - [ ] Verify supported languages and project workflows with real requests, documenting limits for packages, multi-file projects, and long-running processes.
+- [ ] Research current public runtime fallback availability and safe capability limits for source execution.
+- [ ] Design a three-tier workspace storage policy covering Oracle disk, browser IndexedDB, quota behavior, and three-day cleanup.
+- [ ] Define the multi-file project execution, preview, result-pane, and approval-gated AI workspace design in plain language.
+- [ ] Produce an implementation plan that separates feasible features from unsafe, unavailable, or non-guaranteed services.
+- [ ] Clarify the difference between Oracle instance disk, Oracle Object Storage, and browser-local storage in non-technical language.
+- [ ] Decide the exact primary and fallback execution order for the unified result area, including whether Piston should be removed.
+- [ ] Define limits and lifecycle behavior for large uploads, project folders, terminal package caches, preview processes, and three-day workspace expiry.
+- [ ] Design two-way synchronization between browser project files and the real Oracle SK Shell workspace, including files created by commands.
+- [ ] Define file/folder undo and redo behavior that remains safe after terminal writes and workspace synchronization.
+- [ ] Design tab-close, browser-close, refresh, and storage-clear retention choices with visible four-hour and three-day cleanup timers.
+- [ ] Define the expected real behavior for uploaded Vite, React, Next.js, Rust, Java, and other multi-file projects.
+- [ ] Reassess all workspace quotas and runtime limits for realistic large developer projects rather than small examples.
+- [ ] Design the explicit three-day retention and confirmed four-hour deletion flow with cancellation, undo, countdown, and browser-safe behavior.
+- [ ] Define a Copilot-style SK-AI assistant that can inspect, plan, edit, test, run, and preview a workspace only through user-approved tools.
+- [ ] Produce a repository-specific production roadmap with security, capacity, reliability, and large-project acceptance tests.
+- [ ] Evaluate the requested 80–90 GB Oracle source-storage allocation against runtime images, package caches, previews, logs, and safety reserve needs.
+- [ ] Define what source data may use browser IndexedDB and what packages, build outputs, and terminal data must remain server-only.
+- [ ] Define result-cache cleanup when users run another file, close results, stop previews, or retain a full workspace.
+- [ ] Specify the final 150 GB Oracle backend disk allocation for runtime images, Rust and other language tools, package caches, active workspaces, logs, and reserve capacity.
+- [ ] Define reliable terminal, preview, and language-runner behavior for backend availability, storage pressure, process failure, and public fallback conditions.
+- [ ] Produce the final backend-first implementation sequence and acceptance checklist for the existing SK Coder repository.
+- [x] Implement durable workspace metadata, retention choices, capacity admission, and safe cleanup scheduling.
+- [ ] Implement manifest-based browser-to-workspace source synchronization and changed-file recovery.
+- [x] Implement the unified Result & Preview modes, workspace preview status, and generated-file handling.
+- [ ] Implement real preview-process lifecycle controls and protected preview routing for the Oracle deployment.
+- [x] Expand runtime registry and runtime capability disclosure without claiming unavailable toolchains.
+- [ ] Implement workspace history, Trash recovery, and explicit deletion controls.
+- [x] Run a temporary local backend/frontend integration demonstration and record verified behavior.

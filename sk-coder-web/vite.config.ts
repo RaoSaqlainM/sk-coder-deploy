@@ -59,6 +59,13 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:3003",
+        changeOrigin: true,
+        ws: true,
+      },
+    },
     fs: {
       strict: true,
     },

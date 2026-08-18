@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useIDEStore } from "@/store/ideStore"
 import { execute } from "@/lib/executorChain"
-import { createTerminalWebSocket, isBackendAvailable, syncWorkspaceFiles, type WorkspaceFilePayload } from "@/lib/backendRunner"
+import { createTerminalWebSocket, getWorkspaceLifecycle, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy"
@@ -52,9 +52,9 @@ function mkLine(type: TermLine["type"], content: string): TermLine {
 function initState(type: TermType): TabState {
   const welcomes: Record<TermType, string> = {
     shell: "SK Shell — Oracle workspace commands when connected · local file utilities when offline",
-    python: "Python 3 — Ready",
-    nodejs: "Node.js — Ready",
-    java: "Java — Ready",
+    python: "Python Run — source execution; project commands use SK Shell",
+    nodejs: "Node.js Run — source execution; project commands use SK Shell",
+    java: "Java Run — source execution; project commands use SK Shell",
     ai: "SK AI — Ask questions or get code help",
   }
   return {
@@ -122,9 +122,9 @@ const TERM_COLORS: Record<TermType, string> = {
 
 const TERM_LABELS: Record<TermType, string> = {
   shell: "SK Shell",
-  python: "Python 3",
-  nodejs: "Node.js",
-  java: "Java",
+  python: "Python Run",
+  nodejs: "Node Run",
+  java: "Java Run",
   ai: "AI",
 }
 
@@ -139,9 +139,9 @@ function isWorkspaceCommand(input: string) {
 
 const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
   { type: "shell", label: "SK Shell", desc: "Oracle workspace commands · local file utilities" },
-  { type: "python", label: "Python 3", desc: "Execute Python source · shell commands route to SK Shell" },
-  { type: "nodejs", label: "Node.js", desc: "Execute Node.js source · shell commands route to SK Shell" },
-  { type: "java", label: "Java", desc: "Execute Java source · shell commands route to SK Shell" },
+  { type: "python", label: "Python Run", desc: "Single source execution · project commands use SK Shell" },
+  { type: "nodejs", label: "Node Run", desc: "Single source execution · project commands use SK Shell" },
+  { type: "java", label: "Java Run", desc: "Single source execution · project commands use SK Shell" },
   { type: "ai", label: "AI", desc: "Ask code questions · get help" },
 ]
 
@@ -194,9 +194,9 @@ async function ensurePuterForTerm(): Promise<boolean> {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: "shell-1", type: "shell", label: "SK Shell" },
-  { id: "python-1", type: "python", label: "Python 3" },
-  { id: "nodejs-1", type: "nodejs", label: "Node.js" },
-  { id: "java-1", type: "java", label: "Java" },
+  { id: "python-1", type: "python", label: "Python Run" },
+  { id: "nodejs-1", type: "nodejs", label: "Node Run" },
+  { id: "java-1", type: "java", label: "Java Run" },
   { id: "ai-1", type: "ai", label: "AI" },
 ]
 
@@ -230,6 +230,7 @@ export default function MultiTerminal() {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [aiReady, setAiReady] = useState(false)
+  const [workspaceLifecycle, setWorkspaceLifecycle] = useState<WorkspaceLifecycle | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const addBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -273,11 +274,12 @@ export default function MultiTerminal() {
         onReady: (sessionId) => {
           workspaceSessionIdRef.current = sessionId
           addLine(activeShellTabRef.current, "success", "Connected to isolated workspace session.")
+          void getWorkspaceLifecycle(sessionId).then(setWorkspaceLifecycle).catch(() => setWorkspaceLifecycle(null))
         },
         onStdout: (data) => addLines(activeShellTabRef.current, "output", data),
         onStderr: (data) => addLines(activeShellTabRef.current, "error", data),
         onExit: (code) => addLine(activeShellTabRef.current, "info", `Process exited with code ${code}`),
-        onError: () => { workspaceSessionIdRef.current = null },
+        onError: () => { workspaceSessionIdRef.current = null; setWorkspaceLifecycle(null) },
       })
       terminalSocketRef.current = socket
     })
@@ -285,6 +287,7 @@ export default function MultiTerminal() {
       disposed = true
       terminalSocketRef.current = null
       workspaceSessionIdRef.current = null
+      setWorkspaceLifecycle(null)
       socket?.close()
     }
   }, [settings.backend.enabled])
@@ -717,8 +720,8 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
 
   const placeholders: Record<TermType, string> = {
     shell: "ls · cd <dir> · run <file> · mkdir · help  (↑↓ history, Tab complete)",
-    python: "print('hello')  • import math  • any Python 3 code",
-    nodejs: "console.log('hello')  • require('fs')  • any Node.js code",
+    python: "print('hello')  • import math  • source only",
+    nodejs: "console.log('hello')  • require('fs')  • source only",
     java: "class Main { public static void main(String[] args) { System.out.println(\"hello\"); } }",
     ai: "Ask a coding question or request help with code",
   }
@@ -789,7 +792,29 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
           </div>
         )}
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 4, gap: 2 }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 4, gap: 4 }}>
+          {workspaceLifecycle && workspaceSessionIdRef.current && (
+            <>
+              <span title={`Workspace expires ${new Date(workspaceLifecycle.expiresAt).toLocaleString()}`} style={{ color: workspaceLifecycle.state === "scheduled-delete" ? "#e3b341" : "var(--green)", fontSize: 10, whiteSpace: "nowrap" }}>
+                Oracle · {workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
+              </span>
+              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
+                const sessionId = workspaceSessionIdRef.current
+                if (!sessionId) return
+                void setWorkspaceRetention(sessionId, "three-days").then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+              }}>Keep 3d</button>
+              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
+                const sessionId = workspaceSessionIdRef.current
+                if (!sessionId || !window.confirm("Schedule this cloud workspace for deletion four hours after you leave?")) return
+                void setWorkspaceRetention(sessionId, "four-hours").then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+              }}>Delete in 4h</button>
+              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem", color: "#f97583" }} onClick={() => {
+                const sessionId = workspaceSessionIdRef.current
+                if (!sessionId || !window.confirm("Schedule deletion with a one-hour undo period?")) return
+                void scheduleWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+              }}>Delete</button>
+            </>
+          )}
           <button className="btn-icon" onClick={() => setClearTabPending(activeTab)} title="Clear terminal">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="3 6 5 6 21 6"/>

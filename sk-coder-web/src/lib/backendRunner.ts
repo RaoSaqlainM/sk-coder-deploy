@@ -10,6 +10,21 @@ export interface ExecResult {
   sessionId?: string
 }
 
+export type WorkspaceRetentionMode = "three-days" | "four-hours"
+
+export type WorkspaceLifecycle = {
+  id: string
+  createdAt: number
+  lastHeartbeatAt: number
+  expiresAt: number
+  retentionMode: WorkspaceRetentionMode
+  quotaBytes: number
+  state: "active" | "scheduled-delete" | "deleted"
+  deleteUndoUntil: number | null
+  revision: number
+  tier?: string
+}
+
 export type WorkspaceFilePayload = { path: string; content: string }
 
 function getDeviceId(): string {
@@ -34,6 +49,42 @@ export async function isBackendAvailable(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function workspaceRequest<T>(path: string, method: "GET" | "POST" | "PUT", body?: unknown): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    method,
+    headers: getHeaders(),
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  })
+  const data = await response.json().catch(() => ({ error: response.statusText })) as T & { error?: string }
+  if (!response.ok) throw new Error(data.error || response.statusText)
+  return data
+}
+
+export async function createWorkspace(retentionMode: WorkspaceRetentionMode = "three-days") {
+  return workspaceRequest<{ id: string; expiresAt: number; retentionMode: WorkspaceRetentionMode; quotaBytes: number; tier: string }>("/execute/sessions", "POST", { retentionMode })
+}
+
+export async function getWorkspaceLifecycle(sessionId: string) {
+  return workspaceRequest<WorkspaceLifecycle>(`/execute/sessions/${encodeURIComponent(sessionId)}`, "GET")
+}
+
+export async function heartbeatWorkspace(sessionId: string, retentionMode: WorkspaceRetentionMode) {
+  return workspaceRequest<WorkspaceLifecycle>(`/execute/sessions/${encodeURIComponent(sessionId)}/heartbeat`, "POST", { retentionMode })
+}
+
+export async function setWorkspaceRetention(sessionId: string, retentionMode: WorkspaceRetentionMode) {
+  return workspaceRequest<WorkspaceLifecycle>(`/execute/sessions/${encodeURIComponent(sessionId)}/retention`, "PUT", { retentionMode })
+}
+
+export async function scheduleWorkspaceDelete(sessionId: string) {
+  return workspaceRequest<WorkspaceLifecycle>(`/execute/sessions/${encodeURIComponent(sessionId)}/delete`, "POST")
+}
+
+export async function cancelWorkspaceDelete(sessionId: string) {
+  return workspaceRequest<WorkspaceLifecycle>(`/execute/sessions/${encodeURIComponent(sessionId)}/cancel-delete`, "POST")
 }
 
 export async function runOnBackend(language: string, code: string, opts?: { sessionId?: string }): Promise<ExecResult> {

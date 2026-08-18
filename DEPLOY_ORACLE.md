@@ -36,7 +36,7 @@ OCI and Docker both require host firewall and cloud-network ingress rules to be 
 
 ## Host preparation
 
-Clone the private repository to the Oracle instance, create the production environment file, and choose the server-side storage ceiling. The default workspace ceiling is **100 GiB** and each session is capped at **5 GiB** for a maximum of **72 hours**. This leaves operational headroom on a 150 GB disk rather than allowing runtime workspaces to consume the entire disk.
+Clone the private repository to the Oracle instance, create the production environment file, and choose the server-side storage ceiling. The default aggregate workspace ceiling is **75 GiB** and each session is capped at **5 GiB**. A 25 GiB safety reserve protects the host before new workspace admission is allowed. Runtime images, package cache, and logs are bounded separately so the 150 GB host disk is not allocated entirely to user workspaces.
 
 ```bash
 git clone https://github.com/RaoSaqlainM/sk-code-main.git
@@ -50,7 +50,10 @@ Edit `.env` to set the actual capacity policy. Values are bytes except for durat
 RUNTIME_IMAGE=sk-coder-runtime:latest
 SESSION_TTL_HOURS=72
 SESSION_MAX_BYTES=5368709120
-WORKSPACE_MAX_BYTES=107374182400
+WORKSPACE_MAX_BYTES=80530636800
+WORKSPACE_SAFETY_RESERVE_BYTES=26843545600
+PACKAGE_CACHE_MAX_BYTES=21474836480
+LOG_MAX_BYTES=5368709120
 SESSION_MAX_COUNT=50
 COMMAND_TIMEOUT_MS=120000
 LOG_LEVEL=info
@@ -59,9 +62,12 @@ HTTP_PORT=8080
 
 | Variable | Default | Operational meaning |
 |---|---:|---|
-| `SESSION_TTL_HOURS` | `72` | Session data is eligible for cleanup after this duration. |
+| `SESSION_TTL_HOURS` | `72` | Default three-day retention for a workspace unless the user selects the four-hour deletion flow. |
 | `SESSION_MAX_BYTES` | `5368709120` | Limits a single server-side workspace to 5 GiB. |
-| `WORKSPACE_MAX_BYTES` | `107374182400` | Stops new server-side workspace allocation at 100 GiB. |
+| `WORKSPACE_MAX_BYTES` | `80530636800` | Stops new server-side workspace allocation at 75 GiB. |
+| `WORKSPACE_SAFETY_RESERVE_BYTES` | `26843545600` | Rejects new allocation when the host would fall below 25 GiB free. |
+| `PACKAGE_CACHE_MAX_BYTES` | `21474836480` | Reserves at most 20 GiB for package and dependency cache. |
+| `LOG_MAX_BYTES` | `5368709120` | Reserves at most 5 GiB for service and runtime logs. |
 | `SESSION_MAX_COUNT` | `50` | Limits concurrent/retained managed sessions. |
 | `COMMAND_TIMEOUT_MS` | `120000` | Limits one REST command execution to two minutes. |
 
@@ -123,7 +129,9 @@ curl -fsS https://code.example.com/api/healthz
 
 ## Runtime behavior and resilience
 
-Server-side Docker sessions are the preferred execution route. The frontend falls back to live public providers only when the backend is unavailable or rejects a request: Wandbox is the public primary fallback, Piston is attempted when available, and Python may use Pyodide as a final browser-side offline fallback. The application reports the actual result source rather than labelling fallback output as server execution.
+Server-side Docker sessions are the preferred execution route. The frontend falls back to live public providers only when the backend is unavailable or rejects a request: Wandbox is the source-only public fallback and Python may use Pyodide as a final browser-side offline fallback. Piston is intentionally disabled because its public endpoint is not a dependable anonymous execution service. The application reports the actual result source rather than labelling fallback output as server execution.
+
+The workspace registry is stored in `WORKSPACE_METADATA_PATH` and survives a backend restart. The backend reconciles managed Docker containers on startup, records heartbeats, and respects the user's selected lifecycle: retain for three days, or schedule deletion after four hours with a cancellation option before deletion. Do not delete the metadata file or the workspace volume during routine restarts.
 
 SK-AI can propose file writes, folder creation, deletion, terminal commands, and Preview navigation. It does not apply a parsed action automatically. The user must explicitly choose **Approve** on each proposed action; **Decline** removes it without modifying the workspace.
 

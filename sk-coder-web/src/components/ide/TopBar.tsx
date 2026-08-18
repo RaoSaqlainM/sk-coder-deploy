@@ -82,6 +82,9 @@ export default function TopBar() {
         stdout: result.stdout,
         stderr: result.stderr,
         exitCode: result.exitCode,
+        tier: result.executor,
+        capability: result.capability,
+        executionTime: result.executionTime,
       })
     } finally {
       setIsRunning(false)

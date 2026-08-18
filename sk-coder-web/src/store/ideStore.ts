@@ -166,6 +166,7 @@ function deleteAllFileContents(nodes: FileNode[]) {
 }
 
 type ContextMenuState = { x: number; y: number; node: FileNode | null; isFolder: boolean } | null
+type PreviewResult = { stdout: string; stderr: string; exitCode: number | null; tier?: string; capability?: string; executionTime?: number; files?: { name: string; url?: string }[] }
 
 type IDEState = {
   fileTree: FileNode[]
@@ -181,7 +182,7 @@ type IDEState = {
   aiTyping: boolean
   previewContent: string
   previewKey: number
-  previewResult: { stdout: string; stderr: string; exitCode: number | null } | null
+  previewResult: PreviewResult | null
   contextMenu: ContextMenuState
   expandedFolders: Set<string>
   sidebarOpen: boolean
@@ -225,7 +226,7 @@ type IDEActions = {
   setAITyping: (typing: boolean) => void
   setPreviewContent: (html: string) => void
   refreshPreview: () => void
-  setPreviewResult: (result: { stdout: string; stderr: string; exitCode: number | null } | null) => void
+  setPreviewResult: (result: PreviewResult | null) => void
   setContextMenu: (menu: ContextMenuState) => void
   toggleFolder: (path: string) => void
   setSidebarOpen: (open: boolean) => void

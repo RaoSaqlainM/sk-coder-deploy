@@ -3,6 +3,8 @@ import { useIDEStore } from "@/store/ideStore"
 import { buildPreview } from "@/lib/previewBuilder"
 import type { PreviewViewport } from "@/types/ide"
 
+type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
+
 export default function PreviewPane() {
   const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -10,6 +12,7 @@ export default function PreviewPane() {
   const [liveUrl, setLiveUrl] = useState("")
   const [showExternal, setShowExternal] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [resultMode, setResultMode] = useState<ResultMode>("preview")
 
   const viewport = settings.preview.viewport
   const activeFile = getActiveFile()
@@ -79,10 +82,27 @@ export default function PreviewPane() {
   }
 
   const cfg = viewportConfig[viewport]
+  const result = previewResult as (typeof previewResult & { tier?: string; capability?: string; executionTime?: number; files?: { name: string; url?: string }[] }) | null
+  const problemLines = result?.stderr?.split("\n").filter((line) => /error|warning|exception|traceback/i.test(line)) ?? []
+  const runtimeLabel = result?.tier || (showExternal ? "External Preview" : "Browser Static Preview")
+  const modeButtons: { id: ResultMode; label: string }[] = [
+    { id: "preview", label: "Preview" },
+    { id: "console", label: "Console" },
+    { id: "problems", label: `Problems${problemLines.length ? ` (${problemLines.length})` : ""}` },
+    { id: "files", label: "Files Produced" },
+    { id: "runtime", label: "Runtime" },
+  ]
 
   return (
     <div className="preview-panel">
       <div className="preview-toolbar">
+        <div style={{ display: "flex", gap: 2, flexShrink: 0, borderRight: "1px solid var(--border)", paddingRight: 6, marginRight: 2 }}>
+          {modeButtons.map((mode) => (
+            <button key={mode.id} className={`preview-viewport-btn ${resultMode === mode.id ? "active" : ""}`} onClick={() => setResultMode(mode.id)} title={mode.label}>
+              <span>{mode.label}</span>
+            </button>
+          ))}
+        </div>
         <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
           {(["mobile", "tablet", "desktop"] as PreviewViewport[]).map((v) => (
             <button
@@ -141,20 +161,35 @@ export default function PreviewPane() {
       </div>
 
       <div className="preview-content-area">
-        {previewResult ? (
+        {resultMode === "console" ? (
           <div style={{ width: "100%", height: "100%", background: "#0d1117", fontFamily: "'JetBrains Mono','Fira Code',monospace", fontSize: 13, padding: "1rem", overflowY: "auto", boxSizing: "border-box" }}>
-            {previewResult.stdout && (
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#e6edf3" }}>{previewResult.stdout}</pre>
+            {result?.stdout && (
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#e6edf3" }}>{result.stdout}</pre>
             )}
-            {previewResult.stderr && (
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#f97583" }}>{previewResult.stderr}</pre>
+            {result?.stderr && (
+              <pre style={{ margin: result.stdout ? "0.75rem 0 0" : 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#f97583" }}>{result.stderr}</pre>
             )}
-            {!previewResult.stdout && !previewResult.stderr && (
-              <span style={{ color: "#8b949e" }}>(no output)</span>
+            {!result?.stdout && !result?.stderr && (
+              <span style={{ color: "#8b949e" }}>Run a file, build a project, or start SK Shell to view output here.</span>
             )}
-            <div style={{ marginTop: "0.75rem", color: previewResult.exitCode === 0 ? "#56d364" : "#f97583", fontSize: 11, borderTop: "1px solid #21262d", paddingTop: "0.5rem" }}>
-              exit code: {previewResult.exitCode ?? "—"}
+            <div style={{ marginTop: "0.75rem", color: result?.exitCode === 0 ? "#56d364" : "#f97583", fontSize: 11, borderTop: "1px solid #21262d", paddingTop: "0.5rem" }}>
+              exit code: {result?.exitCode ?? "—"}
             </div>
+          </div>
+        ) : resultMode === "problems" ? (
+          <div style={{ width: "100%", height: "100%", background: "#0d1117", padding: "1rem", overflowY: "auto", boxSizing: "border-box" }}>
+            {problemLines.length ? problemLines.map((line, index) => <div key={`${line}-${index}`} style={{ color: /warning/i.test(line) ? "#e3b341" : "#f97583", fontFamily: "var(--font-mono)", fontSize: 12, padding: "0.35rem 0", borderBottom: "1px solid #21262d", whiteSpace: "pre-wrap" }}>{line}</div>) : <span style={{ color: "#8b949e", fontSize: 13 }}>No compiler or runtime problems were reported.</span>}
+          </div>
+        ) : resultMode === "files" ? (
+          <div style={{ width: "100%", height: "100%", background: "#0d1117", padding: "1rem", overflowY: "auto", boxSizing: "border-box" }}>
+            {result?.files?.length ? result.files.map((file) => <div key={file.name} style={{ display: "flex", justifyContent: "space-between", padding: "0.45rem 0", borderBottom: "1px solid #21262d", color: "#e6edf3", fontFamily: "var(--font-mono)", fontSize: 12 }}><span>{file.name}</span>{file.url ? <a href={file.url} download={file.name} style={{ color: "var(--accent)" }}>Download</a> : <span style={{ color: "#8b949e" }}>Available in workspace</span>}</div>) : <span style={{ color: "#8b949e", fontSize: 13 }}>Generated files and build artifacts appear here after a workspace command produces them.</span>}
+          </div>
+        ) : resultMode === "runtime" ? (
+          <div style={{ width: "100%", height: "100%", background: "#0d1117", padding: "1rem", overflowY: "auto", boxSizing: "border-box", color: "#e6edf3" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: "0.8rem" }}>Execution location</div>
+            <div style={{ fontFamily: "var(--font-mono)", color: runtimeLabel === "Oracle Workspace" ? "#56d364" : "#58a6ff", fontSize: 12 }}>{runtimeLabel}</div>
+            <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem", lineHeight: 1.6 }}>{result?.capability || (runtimeLabel === "Browser Static Preview" ? "Static HTML, CSS, and JavaScript preview runs in the browser. Full projects, terminal commands, packages, and server previews require Oracle Workspace." : "Runtime details appear after execution.")}</div>
+            {result?.executionTime !== undefined && <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem" }}>Duration: {result.executionTime} ms</div>}
           </div>
         ) : viewport === "desktop" ? (
           <div className="preview-frame-full">
