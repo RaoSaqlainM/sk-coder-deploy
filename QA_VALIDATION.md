@@ -59,6 +59,7 @@ This record captures the final verification performed against the repaired repos
 | Standalone public-page entry | The IDE header has a Help action that opens the standalone `/guide` route, which retains a Back to SK Coder action and links to separate Privacy and Terms pages. | Live browser verified. |
 | Focused Run visibility | Top-bar Run is absent while Files and Terminal are active and appears only for a runnable source open in the focused Editor. | Live browser verified. |
 | Java source execution | A temporary `Main.java` file exposed Run in Editor. Its normal `public class Main` source completed through the public fallback, displayed `Hello, World!`, and returned exit code 0 in Result Center. | Live browser verified. |
+| Runnable alias alignment | Every extension currently exposed by the Run capability gate maps to a concrete executor alias, including C++ `.cxx` and Kotlin `.kts`. | Frontend typecheck verified. |
 | Image preview | An imported PNG opened directly in Preview and rendered as a contained image with its filename; the validation file was deleted afterward. | Live browser verified. |
 | GitHub connection entry | The GitHub tab showed the user-authorized fine-grained-token connection card with Contents read for import, Contents write for push, and optional Codespaces access. | Live browser verified. |
 
