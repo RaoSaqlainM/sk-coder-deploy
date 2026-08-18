@@ -32,6 +32,17 @@ function isTextFile(name: string): boolean {
   return TEXT_EXTS.has(ext)
 }
 
+function isImageFile(name: string): boolean {
+  return /\.(?:png|jpe?g|gif|webp|bmp|svg)$/i.test(name)
+}
+
+function imageMimeType(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "png"
+  if (ext === "jpg") return "image/jpeg"
+  if (ext === "svg") return "image/svg+xml"
+  return `image/${ext}`
+}
+
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
@@ -139,7 +150,9 @@ export default function ApkEditor() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["", "META-INF", "res"]))
   const [search, setSearch] = useState("")
   const [modified, setModified] = useState<Set<string>>(new Set())
+  const [imagePreview, setImagePreview] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const replacementInputRef = useRef<HTMLInputElement>(null)
 
   const folderTree = buildFolderTree(files)
 
@@ -205,6 +218,21 @@ export default function ApkEditor() {
   async function handleFileSelect(apkFile: ApkFile) {
     if (!zipRef) return
     setSelected(apkFile)
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImagePreview("")
+    if (isImageFile(apkFile.path)) {
+      try {
+        const entry = zipRef.zip.file(apkFile.path)
+        const bytes = entry ? (await entry.async("uint8array")) as Uint8Array : null
+        if (bytes) {
+          const copy = new Uint8Array(bytes.byteLength)
+          copy.set(bytes)
+          setImagePreview(URL.createObjectURL(new Blob([copy.buffer], { type: imageMimeType(apkFile.path) })))
+        }
+      } catch {
+        toast.error("Unable to preview this image resource")
+      }
+    }
     if (!apkFile.isText) { setEditContent(""); return }
     try {
       const entry = zipRef.zip.file(apkFile.path)
@@ -224,6 +252,28 @@ export default function ApkEditor() {
       setSaving(false)
       toast.success(`Saved ${selected.name}`)
     }, 80)
+  }
+
+  async function replaceImageResource(file: File | undefined) {
+    if (!selected || !zipRef || !file) return
+    if (!isImageFile(selected.path)) {
+      toast.error("Select an image resource before replacing it")
+      return
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file")
+      return
+    }
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      zipRef.zip.file(selected.path, bytes)
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
+      setImagePreview(URL.createObjectURL(file))
+      setModified((prev) => new Set([...prev, selected.path]))
+      toast.success(`Replaced ${selected.name}`)
+    } catch {
+      toast.error("Unable to replace this image resource")
+    }
   }
 
   async function repackage() {
@@ -257,6 +307,7 @@ export default function ApkEditor() {
   }
 
   function closeApk() {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
     setFiles([])
     setSelected(null)
     setEditContent("")
@@ -395,6 +446,16 @@ export default function ApkEditor() {
             e.target.value = ""
           }}
         />
+        <input
+          ref={replacementInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml"
+          style={{ display: "none" }}
+          onChange={(event) => {
+            void replaceImageResource(event.target.files?.[0])
+            event.target.value = ""
+          }}
+        />
       </div>
 
       {files.length === 0 ? (
@@ -434,7 +495,7 @@ export default function ApkEditor() {
             </p>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center", maxWidth: 320 }}>
-            {["View AndroidManifest.xml", "Edit string resources", "Replace app icon", "Edit smali code", "Repackage & download"].map((f) => (
+            {["1 Browse archive", "2 Edit text resources", "3 Replace image resources", "4 Rebuild & download"].map((f) => (
               <span key={f} style={{
                 fontSize: 10, padding: "0.2rem 0.5rem", borderRadius: 4,
                 background: "var(--bg-elevated)", color: "var(--text-secondary)",
@@ -503,6 +564,15 @@ export default function ApkEditor() {
                       {saving ? "Saving..." : "Save"}
                     </button>
                   )}
+                  {isImageFile(selected.path) && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => replacementInputRef.current?.click()}
+                      style={{ fontSize: 10, padding: "0.15rem 0.5rem", flexShrink: 0 }}
+                    >
+                      Replace image
+                    </button>
+                  )}
                 </div>
                 {selected.isText ? (
                   <textarea
@@ -515,14 +585,22 @@ export default function ApkEditor() {
                     }}
                     spellCheck={false}
                   />
+                ) : isImageFile(selected.path) ? (
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.8rem", padding: "1rem", minHeight: 0 }}>
+                    {imagePreview ? <img src={imagePreview} alt={selected.name} style={{ maxWidth: "100%", maxHeight: "calc(100% - 86px)", objectFit: "contain", borderRadius: 6, border: "1px solid var(--border)" }} /> : <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Loading image preview…</span>}
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{selected.name}</p>
+                      <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.55 }}>Replace this image resource, then choose Repackage to download the changed archive.</p>
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.75rem", padding: "1rem" }}>
                     <span style={{ fontSize: 36 }}>{getFileIcon(selected.path, false)}</span>
                     <div style={{ textAlign: "center" }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{selected.name}</p>
                       <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>
-                        Binary file — view only<br />
-                        Cannot be edited as text
+                        Binary entry — browse only<br />
+                        Text and image resources can be changed here
                       </p>
                       <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, opacity: 0.5 }}>{selected.path}</p>
                     </div>

@@ -12,6 +12,35 @@ function flattenFiles(nodes: FileNode[]): Map<string, FileNode> {
   return map
 }
 
+function resolveProjectPath(directory: string, reference: string): string {
+  const rawPath = reference.split(/[?#]/, 1)[0]
+  const parts = (rawPath.startsWith("/") ? rawPath.slice(1) : `${directory ? `${directory}/` : ""}${rawPath}`).split("/")
+  const resolved: string[] = []
+  for (const part of parts) {
+    if (!part || part === ".") continue
+    if (part === "..") resolved.pop()
+    else resolved.push(part)
+  }
+  return resolved.join("/")
+}
+
+function inlineImageAssets(content: string, directory: string, files: Map<string, FileNode>): string {
+  const imageReference = /\.(?:png|jpe?g|gif|webp|svg|bmp|avif)(?:[?#][^"')\s]*)?$/i
+  return content.replace(/(\b(?:src|poster|href)\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, reference, suffix) => {
+    if (/^(?:data:|blob:|https?:|#)/i.test(reference) || !imageReference.test(reference)) return match
+    const asset = files.get(resolveProjectPath(directory, reference))?.assetData
+    return asset ? `${prefix}${asset}${suffix}` : match
+  })
+}
+
+function inlineCssImageAssets(css: string, directory: string, files: Map<string, FileNode>): string {
+  return css.replace(/url\(\s*(['"]?)([^'"\)]+)\1\s*\)/gi, (match, quote, reference) => {
+    if (/^(?:data:|blob:|https?:|#)/i.test(reference)) return match
+    const asset = files.get(resolveProjectPath(directory, reference))?.assetData
+    return asset ? `url("${asset}")` : match
+  })
+}
+
 function buildInlineHtml(html: string, css: string, js: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -58,21 +87,21 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
 
     html = html.replace(/<link[^>]+href="([^"]+\.css)"[^>]*>/gi, (match, href) => {
       if (href.startsWith("http")) return match
-      const cssPath = `${dir}/${href}`
+      const cssPath = resolveProjectPath(dir, href)
       const cssNode = files.get(cssPath)
-      if (cssNode) return `<style>${cssNode.content || ""}</style>`
+      if (cssNode) return `<style>${inlineCssImageAssets(cssNode.content || "", cssNode.path.substring(0, cssNode.path.lastIndexOf("/")), files)}</style>`
       return match
     })
 
     html = html.replace(/<script[^>]+src="([^"]+\.(?:js|ts))"[^>]*><\/script>/gi, (match, src) => {
       if (src.startsWith("http")) return match
-      const jsPath = `${dir}/${src}`
+      const jsPath = resolveProjectPath(dir, src)
       const jsNode = files.get(jsPath)
       if (jsNode) return `<script>${jsNode.content || ""}</script>`
       return match
     })
 
-    return html
+    return inlineImageAssets(html, dir, files)
   }
 
   const cssFile = findFirst(files, "css")

@@ -114,12 +114,25 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     setSelectionMode, toggleSelectedPath, moveNodes, copyNodes,
   } = useIDEStore()
   const [renameValue, setRenameValue] = useState(node.name)
+  const [armedForOpen, setArmedForOpen] = useState(false)
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const openTapRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastOpenTapAtRef = useRef(0)
   const expanded = expandedFolders.has(node.path)
 
   function clearLongPress() {
     if (longPressRef.current) clearTimeout(longPressRef.current)
     longPressRef.current = null
+  }
+
+  function openFile() {
+    if (openTapRef.current) clearTimeout(openTapRef.current)
+    openTapRef.current = null
+    lastOpenTapAtRef.current = 0
+    setArmedForOpen(false)
+    openTab(node)
+    setActivePanel(isImagePreviewFile(node) ? "preview" : "editor")
+    setSidebarOpen(false)
   }
 
   function handleClick(event: React.MouseEvent) {
@@ -138,9 +151,18 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     if (node.type === "folder") {
       toggleFolder(node.path)
     } else {
-      openTab(node)
-      setActivePanel(isImagePreviewFile(node) ? "preview" : "editor")
-      setSidebarOpen(false)
+      const now = Date.now()
+      if (now - lastOpenTapAtRef.current < 420) {
+        openFile()
+        return
+      }
+      lastOpenTapAtRef.current = now
+      setArmedForOpen(true)
+      if (openTapRef.current) clearTimeout(openTapRef.current)
+      openTapRef.current = setTimeout(() => {
+        lastOpenTapAtRef.current = 0
+        setArmedForOpen(false)
+      }, 420)
     }
   }
 
@@ -197,7 +219,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
   return (
     <>
       <div
-        className={`file-node ${isActive ? "active" : ""} ${isDragOver ? "drag-over" : ""} ${selectedPaths.has(node.path) ? "selected" : ""} ${batchOperation && node.type === "folder" ? "batch-target" : ""}`}
+        className={`file-node ${isActive ? "active" : ""} ${armedForOpen ? "armed" : ""} ${isDragOver ? "drag-over" : ""} ${selectedPaths.has(node.path) ? "selected" : ""} ${batchOperation && node.type === "folder" ? "batch-target" : ""}`}
         style={{ paddingLeft: `${0.4 + depth * 1}rem` }}
         onClick={handleClick}
         onContextMenu={handleContextMenu}

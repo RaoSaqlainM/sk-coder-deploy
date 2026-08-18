@@ -118,3 +118,7 @@
 - [x] Add the supplied developer portrait to a simple About card in Settings with a local edit-gate code of `0`, clearly treating the gate as a convenience control rather than real security.
 - [x] Simplify user-facing Guide, About, and status wording to explain backend connection and supported runtime categories without exposing implementation vendors or internal sources.
 - [x] Review runnable-language coverage and document that new arbitrary language or project runtimes require a compatible backend image or defined public execution route rather than promising universal execution.
+- [x] Restore a clear Explorer gesture: first tap selects a file or folder, a second quick tap opens it in Editor or Preview, and a repeated Files action can reveal or hide the Explorer without making the initial launch merge with Editor.
+- [x] Audit the APK editor against a four-tool workflow: browse/extract entries, edit supported text resources, replace supported image/media resources, and rebuild/download the changed archive with accurate unsupported-operation messages.
+- [x] Repair local image asset resolution for HTML and browser-project Preview so images referenced by project HTML render when their files are present in Explorer.
+- [x] Run an end-to-end regression pass across Files, Editor, Terminal, Preview, AI, APK, GitHub, public pages, archive extraction, source runs, project image previews, and mobile/desktop interaction states; fix every reproducible defect found.
