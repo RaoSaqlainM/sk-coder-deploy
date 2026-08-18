@@ -64,7 +64,7 @@ export default function ContextMenu() {
     setNewItem, openTab, fileTree, setActivePanel, addTerminalLine,
     setTerminalInput, refreshPreview, setPreviewContent, clearTerminal,
     getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen, setPreviewResult,
-    setSelectionMode, toggleSelectedPath,
+    setSelectionMode, toggleSelectedPath, setIsRunning,
   } = useIDEStore()
   const ref = useRef<HTMLDivElement>(null)
   const [clipboardState, setClipboardState] = useState<{ path: string; mode: "copy" | "move" } | null>(null)
@@ -243,20 +243,25 @@ export default function ContextMenu() {
     if (!node || node.type !== "file") return
     openTab(node)
     const extension = node.name.split(".").pop()?.toLowerCase() || ""
-    toast.info(`Running ${node.name}`)
-    const result = await execute(extension, node.content || "")
-    setPreviewResult({
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode,
-      tier: result.tier,
-      capability: result.capability,
-      executionTime: result.executionTime,
-    })
     setActivePanel("preview")
     setContextMenu(null)
-    if (result.exitCode === 0) toast.success(`Finished ${node.name}`)
-    else toast.error(`Finished with errors: ${node.name}`)
+    setPreviewResult(null)
+    setIsRunning(true)
+    try {
+      const result = await execute(extension, node.content || "")
+      setPreviewResult({
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        tier: result.tier,
+        capability: result.capability,
+        executionTime: result.executionTime,
+      })
+      if (result.exitCode === 0) toast.success(`Finished ${node.name}`)
+      else toast.error(`Finished with errors: ${node.name}`)
+    } finally {
+      setIsRunning(false)
+    }
   }
 
   function handleOpenInTerminal(termType?: string) {

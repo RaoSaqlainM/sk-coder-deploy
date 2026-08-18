@@ -266,25 +266,43 @@ export default function FileExplorer() {
     batchOperation, setSelectionMode, clearSelectedPaths, setBatchOperation, deleteNodes,
   } = useIDEStore()
   const importInputRef = useRef<HTMLInputElement>(null)
+  const archiveInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [search, setSearch] = useState("")
   const activeFile = getActiveFile()
 
   async function handleSmartImport(files: FileList) {
     if (!files.length) return
-    const archiveFile = Array.from(files).find((file) => isZipCompatibleArchive(file.name))
-    try {
-      if (archiveFile) {
-        const nodes = await importFromArchive(archiveFile)
-        importFiles(nodes)
-        toast.success(`Extracted ${archiveFile.name} into ${archiveFile.name.replace(/\.[^.]+$/, "")}`)
-      } else {
-        const nodes = await importFromFiles(files)
-        importFiles(nodes)
-        toast.success(`Imported ${files.length} file(s)`)
+    const selectedFiles = Array.from(files)
+    const archives = selectedFiles.filter((file) => isZipCompatibleArchive(file.name))
+    const regularFiles = selectedFiles.filter((file) => !isZipCompatibleArchive(file.name))
+    const imported: FileNode[] = []
+    const errors: string[] = []
+
+    for (const archive of archives) {
+      try {
+        imported.push(...await importFromArchive(archive))
+      } catch (error) {
+        errors.push(`${archive.name}: ${error instanceof Error ? error.message : "could not be extracted"}`)
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Import failed")
+    }
+
+    if (regularFiles.length) {
+      const transfer = new DataTransfer()
+      regularFiles.forEach((file) => transfer.items.add(file))
+      imported.push(...await importFromFiles(transfer.files))
+    }
+
+    if (imported.length) {
+      importFiles(imported)
+      const parts = [
+        regularFiles.length ? `Imported ${regularFiles.length} file${regularFiles.length === 1 ? "" : "s"}` : "",
+        archives.length - errors.length ? `extracted ${archives.length - errors.length} archive${archives.length - errors.length === 1 ? "" : "s"} into same-named folders` : "",
+      ].filter(Boolean)
+      toast.success(parts.join(" · "))
+    }
+    if (errors.length) {
+      toast.error(errors.join(" · "))
     }
   }
 
@@ -362,6 +380,9 @@ export default function FileExplorer() {
               <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
             </svg>
           </button>
+          <button className="file-explorer-extract-btn" onClick={() => archiveInputRef.current?.click()} title="Extract a supported ZIP-compatible archive into a same-named folder">
+            Extract
+          </button>
           <button className="file-explorer-action-btn" onClick={() => importInputRef.current?.click()} title="Import files or supported archive">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -429,6 +450,13 @@ export default function FileExplorer() {
         ref={importInputRef}
         type="file"
         multiple
+        style={{ display: "none" }}
+        onChange={async (e) => { if (e.target.files) await handleSmartImport(e.target.files); e.target.value = "" }}
+      />
+      <input
+        ref={archiveInputRef}
+        type="file"
+        accept=".zip,.jar,.apk,.xapk,.apks,.war,.ear,.aar"
         style={{ display: "none" }}
         onChange={async (e) => { if (e.target.files) await handleSmartImport(e.target.files); e.target.value = "" }}
       />

@@ -8,7 +8,7 @@ import { parseErrors } from "@/components/ide/ErrorPanel"
 export default function TopBar() {
   const {
     isRunning, setIsRunning, fileTree, activeTabId,
-    addTerminalLine, clearTerminal, setActivePanel, setShowSettings, getActiveFile,
+    setActivePanel, setShowSettings, getActiveFile,
     setPreviewContent, setErrors, setPreviewResult,
   } = useIDEStore()
 
@@ -17,7 +17,6 @@ export default function TopBar() {
   async function handleRun() {
     if (isRunning) {
       setIsRunning(false)
-      addTerminalLine({ type: "info", content: "Execution stopped." })
       return
     }
 
@@ -39,45 +38,28 @@ export default function TopBar() {
     }
 
     setActivePanel("preview")
-    clearTerminal()
     setErrors([])
     setIsRunning(true)
     setPreviewResult(null)
-    addTerminalLine({ type: "info", content: `▶ Running ${activeFile.name}...` })
 
     try {
       const result = await unifiedExecute(ext, code)
 
       if (!result) {
-        addTerminalLine({ type: "error", content: `No executor available for .${ext}` })
-        setIsRunning(false)
+        setPreviewResult({
+          stdout: "",
+          stderr: `No execution route is available for .${ext} in this environment.`,
+          exitCode: null,
+          tier: "unavailable",
+          capability: "No compatible runtime is currently available.",
+        })
         return
       }
 
-      addTerminalLine({ type: "info", content: `Runtime: ${result.executor} — ${result.capability}` })
-
-      if (result.stdout) {
-        for (const line of result.stdout.split("\n")) {
-          if (line.trim()) addTerminalLine({ type: "output", content: line })
-        }
-      }
-
       if (result.stderr) {
-        for (const line of result.stderr.split("\n")) {
-          if (line.trim()) addTerminalLine({ type: "error", content: line })
-        }
         const errors = parseErrors(result.stderr, activeFile.name)
         if (errors.length) setErrors(errors)
       }
-
-      if (!result.stdout && !result.stderr) {
-        addTerminalLine({ type: "info", content: "(no output)" })
-      }
-
-      addTerminalLine({
-        type: result.exitCode === 0 ? "success" : "error",
-        content: `✓ Done ⏱ ${result.executionTime}ms exit ${result.exitCode}`,
-      })
 
       setPreviewResult({
         stdout: result.stdout,

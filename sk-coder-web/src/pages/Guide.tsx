@@ -21,7 +21,7 @@ export default function GuidePage() {
 
         <h2>Files and Editor</h2>
         <p>Use <strong>Files</strong> to import, create, rename, move, download, and open projects. Opening a file moves you to Editor. The three-dot file menu shows only actions that make sense for the selected file or folder.</p>
-        <p>The top action always uses the file currently open in Editor. It does not run an earlier file in the background. After a run, the Result Center shows the file name, status, output, problems, files produced, and run details together.</p>
+        <p>The top action always uses the file currently open in Editor. It does not run an earlier file in the background and it does not send normal source-file results to SK Shell. After a run begins, Result Center opens directly with the file name, a visible Running status, and a loading bar. When execution finishes, the same page shows output, problems, files produced, and run details together.</p>
 
         <h2>Selecting, moving, and exporting files</h2>
         <p>Choose the <strong>Select</strong> button in Files to enter selection mode. On a desktop, hold Ctrl or Command while choosing files or folders. On a phone, press and hold a file or folder to begin selection mode.</p>
@@ -77,20 +77,20 @@ export default function GuidePage() {
         <p>SK Coder can edit any text file. A run action appears only when a supported runtime and workflow are available. It does not claim to run every programming language, game engine, desktop toolkit, mobile build, hardware tool, or specialist package in a browser.</p>
 
         <h2>Archives and extracted folders</h2>
-        <p>When you import a ZIP-compatible archive, SK Coder extracts it into a new folder with the same name as the archive. Supported browser extraction formats are <strong>.zip, .jar, .apk, .xapk, .apks, .war, .ear, and .aar</strong>. These formats share ZIP container structure.</p>
+        <p>Choose <strong>Extract</strong> in Files, then select a ZIP-compatible archive. SK Coder extracts it into a new folder with the same name as the archive. The normal Import action also detects supported archives automatically. Supported browser extraction formats are <strong>.zip, .jar, .apk, .xapk, .apks, .war, .ear, and .aar</strong>. These formats share ZIP container structure.</p>
         <p>Protected, multi-volume, damaged, unusually large, or very large-entry archives can fail safely. Formats such as <strong>.rar, .7z, .tar, .gz, .bz2, and .xz</strong> are not extracted in the browser. Keep the original archive or use a live workspace or external archive utility for those formats.</p>
 
         <h2>SK Shell and AI Terminal</h2>
-        <p><strong>SK Shell</strong> is the full terminal. Use it for folders, <code>cd</code>, Git, Node.js, package installs, compiler commands, build tools, and live text programs. Each SK Shell tab keeps its own current folder, command history, and transcript.</p>
-        <p>On a phone, swipe terminal output to scroll. The key row above the input provides Tab, arrow keys, Escape, and Ctrl+C. The terminal shows an honest unavailable message when a live workspace is not ready; it never invents command output.</p>
-        <p><strong>AI Terminal</strong> is an assistant surface, not a shell. It can explain the active workspace and propose scoped edits, folders, commands, or previews. It always asks for approval before changing, running, deleting, or opening anything.</p>
+        <p><strong>SK Shell</strong> is the full terminal. Use it for folders, <code>cd</code>, Git, Node.js, package installs, compiler commands, build tools, and live text programs. Each SK Shell tab keeps its own current folder, command history, and transcript. Scroll its transcript with a mouse wheel, trackpad, scrollbar, arrow keys, or a finger swipe without moving the fixed IDE navigation.</p>
+        <p>The terminal command surface supports normal browser paste, copy, select-all, touch selection, and multi-line drafting. Press Enter to send; press Shift+Enter to add a line. On a phone, the key row above the input provides Tab, arrow keys, Escape, and Ctrl+C. SK Shell shows an honest unavailable message when a live workspace is not ready; it never invents command output.</p>
+        <p><strong>AI Terminal</strong> is an assistant surface, not a shell. It uses the same multi-line composer behavior as SK-AI, can reason about supplied workspace context, and can propose scoped edits, folders, commands, or previews. It always asks for approval before changing, running, deleting, or opening anything.</p>
 
         <h2>SK Coder AI setup</h2>
         <Step number={1}>Open <strong>Settings → AI</strong>.</Step>
         <Step number={2}>Choose the free compatible option when available, or enter your own compatible provider key.</Step>
         <Step number={3}>Validate the selected provider, then open AI or AI Terminal.</Step>
         <Step number={4}>Ask for an explanation, plan, fix, file creation, build command, or preview. Review every proposed action before approving it.</Step>
-        <p>SK Coder AI receives the active-file-first workspace context needed for your request. It does not need or expose the application’s private implementation details.</p>
+        <p>SK Coder AI receives the active-file-first workspace context and selected project excerpts needed for your request. It can explain and propose edits to those supplied files, but it cannot silently inspect files that have not been provided to it, invent terminal results, install packages, or behave as a hosted Codespaces machine. Approving a one-file source-run proposal opens its result in Result Center; approving a package or project command opens SK Shell and requires a live workspace.</p>
 
         <h2>Workspace retention and browser storage</h2>
         <p>When a live workspace is created, choose <strong>Keep 3 days</strong> to retain it for the workspace period, or choose <strong>Delete in 4 hours</strong> when you are finished. Scheduled deletion can be cancelled during its undo window. Refreshing the page does not delete the workspace by itself.</p>
@@ -102,8 +102,8 @@ export default function GuidePage() {
         <Step number={2}>Choose the correct owner and only the repositories you want to connect.</Step>
         <Step number={3}>Grant <strong>Contents: Read</strong> for browsing, or <strong>Contents: Write</strong> only when you need to push changes.</Step>
         <Step number={4}>Paste the token into <strong>Settings → GitHub</strong>. Never put a token in a source file, chat message, or public repository.</Step>
-        <p>In <strong>GitHub → Repositories</strong>, choose <strong>Import to Explorer</strong> to add a selected repository as a new folder without replacing your existing files. SK Coder imports supported text files within safe size limits; use Codespaces for large repositories, binaries, or full development environments.</p>
-        <p>Use <strong>Push Files</strong> to choose a repository, enter a commit message, and explicitly commit the current Explorer files. Repository creation, import, and push happen only after you choose the relevant GitHub action. Settings shows how to disconnect and remove the saved local token.</p>
+        <p>In <strong>GitHub → Repositories</strong>, choose <strong>Import to Explorer</strong> to add a selected repository as a new folder without replacing your existing files. SK Coder imports supported text files within safe size limits. Use <strong>Push Files</strong> to choose a repository, enter a commit message, and explicitly commit Explorer files. Repository import and push are separate explicit actions; SK-AI can only suggest changes and still requires your approval.</p>
+        <p><strong>Codespaces</strong> is a separate GitHub-hosted development environment. Opening a Codespace hands the project to GitHub for its own terminal, packages, and runtime. It is useful for large repositories, binaries, frameworks, and full development environments, but it is not the same as importing files into SK Coder and it requires GitHub access and a compatible Codespaces entitlement.</p>
 
         <h2>APK and ZIP editor</h2>
         <p>The APK section is a file editor and repackaging tool for APK or ZIP archives. It can browse archive entries, edit supported text resources such as XML, JSON, SMALI, properties, Gradle files, and text, then save a changed archive for download. It can prepare a changed resource archive, but it is not Android Studio, a full decompiler, an Android emulator, a signing service, or a guaranteed package-name editor for binary Android manifests.</p>

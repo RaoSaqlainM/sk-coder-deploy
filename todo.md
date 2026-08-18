@@ -64,7 +64,7 @@
 - [x] Research and document practical Oracle runtime support, project preview, interactive stdin, mobile terminal interaction, GitHub access, and APK build limitations.
 - [x] Test expanded file actions, mobile terminal behavior, diagnostics, project routing, and fallback disclosures before release.
 - [x] Reframe public runtime and fallback wording so users see capability-focused messages without internal hosting or provider implementation details.
-- [ ] Redesign the terminal input and history experience for practical multi-command workflows on desktop and mobile, with an accessible symbol accessory bar.
+- [x] Redesign the terminal input and history experience for practical multi-command workflows on desktop and mobile, with an accessible symbol accessory bar.
 - [ ] Define interactive-program support for calculators, console applications, and graphical or game projects, clearly separating pre-run input, live PTY sessions, and unsupported GUI output.
 - [x] Simplify source-file and project actions so the UI offers only contextually useful choices and routes users into the appropriate workspace experience.
 - [x] Add public Help, supported-language, supported-project, retention, privacy, and terms pages that are suitable for a public product without exposing backend architecture.
@@ -95,3 +95,11 @@
 - [ ] Expand the APK workspace capabilities that can safely run in-browser, including archive inspection, extracted-resource editing, manifest/package-name editing where valid, icon replacement preparation, and rebuilt-APK limitations.
 - [x] Expand the Help manual into an exhaustive, capability-accurate language, file-type, archive, project, game, result, terminal, GitHub, AI, and APK reference without promising unsupported GUI execution.
 - [ ] Verify Java game, native GUI, and heavy-project behavior against the real runtime boundary and document only viable browser, console, artifact, or remote-workspace outcomes.
+- [x] Reproduce and repair any Run File path that writes “Running …” into SK Shell or opens Terminal before the Result Center, ensuring every applicable source file uses a current-file loading state and shared result surface.
+- [x] Make Explorer and Terminal content independently scrollable by mouse wheel, trackpad, keyboard, scrollbar, and touch without breaking the fixed IDE navigation or terminal controls.
+- [x] Redesign terminal command and AI chat entry surfaces for practical multi-line drafting, paste, copy, select-all, keyboard shortcuts, mobile touch selection, and submission behavior while preserving terminal semantics.
+- [x] Re-audit archive detection and UI affordances so extract actions appear only for supported ZIP-compatible files and always produce a same-named folder, including JAR inputs that are valid ZIP containers.
+- [x] Move Privacy, Terms, and User Guide into clearly linked public pages outside Settings, with an accurate language-and-feature reference and no internal infrastructure disclosure.
+- [x] Audit the GitHub integration boundary and implement or document separate, explicit flows for fine-grained token repository import/export, AI-assisted workspace changes after approval, and GitHub Codespaces handoff.
+- [x] Strengthen SK Coder AI workspace context and prompts so it can inspect supplied browser-workspace content, propose bounded file changes and commands, and execute only approved operations without claiming full Copilot or Codespaces access when unavailable.
+- [x] Produce an updated, capability-accurate language and project support matrix that distinguishes browser preview, source-only execution, live Oracle terminal execution, generated artifacts, and unavailable GUI or emulator workloads.

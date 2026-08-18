@@ -249,16 +249,17 @@ export default function MultiTerminal() {
   const addBtnRef = useRef<HTMLButtonElement>(null)
 
   const outputRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const terminalSocketsRef = useRef(new Map<string, ReturnType<typeof createTerminalWebSocket>>())
   const workspaceSessionIdRef = useRef<string | null>(null)
   const terminalErrorMessagesRef = useRef(new Set<string>())
+  const stickToOutputEndRef = useRef(true)
 
   const activeState = tabStates[activeTab] ?? initState("shell")
   const activeType = tabs.find((t) => t.id === activeTab)?.type ?? "shell"
 
   useEffect(() => {
-    if (outputRef.current) {
+    if (outputRef.current && stickToOutputEndRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight
     }
   }, [tabStates, activeTab])
@@ -750,9 +751,13 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>, tabId: string) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>, tabId: string) {
     const state = tabStates[tabId]
-    if (e.key === "Enter") { handleSubmit(tabId); return }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      void handleSubmit(tabId)
+      return
+    }
     if (e.key === "ArrowUp") {
       e.preventDefault()
       const next = Math.min((state?.histIdx ?? -1) + 1, (state?.history?.length ?? 0) - 1)
@@ -830,11 +835,11 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
   }
 
   const placeholders: Record<TermType, string> = {
-    shell: "Command or live program input · ↑↓ history · Tab complete · Ctrl+C interrupt",
+    shell: "Command or live program input · Enter sends · Shift+Enter adds a line",
     python: "print('hello')  • import math  • source only",
     nodejs: "console.log('hello')  • require('fs')  • source only",
     java: "class Main { public static void main(String[] args) { System.out.println(\"hello\"); } }",
-    ai: "Ask a coding question or request help with code",
+    ai: "Ask about the workspace · Enter sends · Shift+Enter adds a line",
   }
 
   const visibleLines = (() => {
@@ -952,7 +957,15 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         </div>
       </div>
 
-      <div className="terminal-output" ref={outputRef} onClick={() => inputRef.current?.focus()}>
+      <div
+        className="terminal-output"
+        ref={outputRef}
+        onClick={() => inputRef.current?.focus()}
+        onScroll={(event) => {
+          const target = event.currentTarget
+          stickToOutputEndRef.current = target.scrollHeight - target.scrollTop - target.clientHeight < 28
+        }}
+      >
         {visibleLines.map((line) => {
           if (line.type === "ai-thinking") {
             return (
@@ -1011,17 +1024,22 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         <span className="terminal-prompt-label" style={{ color: TERM_COLORS[activeType], fontSize: 11, whiteSpace: "nowrap", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>
           {promptLabels[activeType]}
         </span>
-        <input
+        <textarea
           ref={inputRef}
           className="terminal-input"
           value={activeState.input}
-          onChange={(e) => updateState(activeTab, { input: e.target.value })}
+          onChange={(e) => {
+            updateState(activeTab, { input: e.target.value })
+            e.currentTarget.style.height = "auto"
+            e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 180)}px`
+          }}
           onKeyDown={(e) => handleKeyDown(e, activeTab)}
           placeholder={placeholders[activeType]}
           disabled={activeState.running}
           autoComplete="off"
           spellCheck={false}
-          style={{ width: "auto", border: "none", padding: 0, background: "transparent" }}
+          rows={1}
+          aria-label={activeType === "ai" ? "AI Terminal message" : "Terminal command or program input"}
         />
         <button
           className="btn btn-primary"

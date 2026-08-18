@@ -7,7 +7,7 @@ import type { PreviewViewport } from "@/types/ide"
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
 
 export default function PreviewPane() {
-  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal } = useIDEStore()
+  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [externalUrl, setExternalUrl] = useState("")
   const [liveUrl, setLiveUrl] = useState("")
@@ -44,8 +44,8 @@ export default function PreviewPane() {
   }, [previewKey, fileTree, showExternal, activeFile?.path, viewport])
 
   useEffect(() => {
-    setResultMode(previewResult ? "console" : "preview")
-  }, [previewResult])
+    setResultMode(previewResult || isRunning ? "console" : "preview")
+  }, [previewResult, isRunning])
 
   useEffect(() => {
     function handle(e: MessageEvent) {
@@ -103,7 +103,7 @@ export default function PreviewPane() {
   const problemLines = result?.stderr?.split("\n").filter((line) => /error|warning|exception|traceback/i.test(line)) ?? []
   const activeExtension = activeFile?.path.split(".").pop()?.toLowerCase() || activeFile?.language || ""
   const supportsConsoleInput = Boolean(activeFile && !["html", "htm", "css", "md", "json"].includes(activeExtension))
-  const resultStatus = !result ? "Ready" : result.exitCode === 0 ? "Completed" : "Needs attention"
+  const resultStatus = isRunning ? "Running" : !result ? "Ready" : result.exitCode === 0 ? "Completed" : "Needs attention"
   const runDetail = !result
     ? showExternal
       ? "Viewing an external web page."
@@ -128,6 +128,7 @@ export default function PreviewPane() {
     const extension = activeFile.path.split(".").pop()?.toLowerCase() || activeFile.language || ""
     if (["html", "htm", "css", "md", "json"].includes(extension)) return
     setRunningWithInput(true)
+    setIsRunning(true)
     setPreviewResult(null)
     setResultMode("console")
     try {
@@ -142,6 +143,7 @@ export default function PreviewPane() {
       })
     } finally {
       setRunningWithInput(false)
+      setIsRunning(false)
     }
   }
 
@@ -225,8 +227,15 @@ export default function PreviewPane() {
                 <span className="result-summary-label">Result</span>
                 <strong>{activeFile?.name || "No file selected"}</strong>
               </div>
-              <span className={`result-status ${result?.exitCode === 0 ? "success" : result ? "error" : "neutral"}`}>{resultStatus}</span>
+              <span className={`result-status ${isRunning ? "neutral" : result?.exitCode === 0 ? "success" : result ? "error" : "neutral"}`}>{resultStatus}</span>
             </div>
+            {isRunning && (
+              <div className="result-run-progress" role="status" aria-live="polite">
+                <span className="result-run-spinner" />
+                <span>Running {activeFile?.name || "the selected file"}…</span>
+                <span className="result-run-progress-bar"><span /></span>
+              </div>
+            )}
             {supportsConsoleInput && (
               <div className="result-action-row">
                 <button className={`btn btn-ghost ${showProgramInput ? "active" : ""}`} onClick={() => setShowProgramInput((visible) => !visible)}>
@@ -256,10 +265,10 @@ export default function PreviewPane() {
               <pre style={{ margin: result.stdout ? "0.75rem 0 0" : 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#f97583" }}>{result.stderr}</pre>
             )}
             {!result?.stdout && !result?.stderr && (
-              <span style={{ color: "#8b949e" }}>Select a runnable file to see its result here.</span>
+              <span style={{ color: "#8b949e" }}>{isRunning ? "The result will appear here when execution finishes." : "Select a runnable file to see its result here."}</span>
             )}
             <div style={{ marginTop: "0.75rem", color: result?.exitCode === 0 ? "#56d364" : "#f97583", fontSize: 11, borderTop: "1px solid #21262d", paddingTop: "0.5rem" }}>
-              exit code: {result?.exitCode ?? "—"}
+              exit code: {isRunning ? "running" : result?.exitCode ?? "—"}
             </div>
           </div>
         ) : resultMode === "problems" ? (

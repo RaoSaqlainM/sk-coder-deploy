@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm"
 import { useIDEStore } from "@/store/ideStore"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { actionLabel, buildAgentInstruction, extractAgentProposal, type AgentAction } from "@/lib/aiAgent"
+import { execute } from "@/lib/executorChain"
 import type { AIChatMessage } from "@/types/ide"
 
 declare global {
@@ -41,7 +42,7 @@ function getWorkspaceFiles(nodes: ReturnType<typeof useIDEStore.getState>["fileT
   return files.sort((a, b) => {
     const score = (path: string) => path === activePath ? 0 : /(?:package\.json|README|tsconfig|vite\.config|requirements\.txt|Cargo\.toml|pom\.xml)$/i.test(path) ? 1 : 2
     return score(a.path) - score(b.path) || a.path.localeCompare(b.path)
-  }).slice(0, 8)
+  }).slice(0, 12)
 }
 
 async function ensurePuter(): Promise<boolean> {
@@ -76,7 +77,7 @@ async function sendViaPuter(prompt: string): Promise<string> {
 export default function AIChatPanel() {
   const {
     aiChatMessages, aiTyping, settings, addAIChatMessage, clearAIChat,
-    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree, addFile, updateFileContent, deleteNode, setTerminalBridgeCmd, setActivePanel, openTab,
+    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree, addFile, updateFileContent, deleteNode, setTerminalBridgeCmd, setActivePanel, openTab, setPreviewResult, setIsRunning,
   } = useIDEStore()
   const [input, setInput] = useState("")
   const [proposals, setProposals] = useState<AgentAction[]>([])
@@ -101,7 +102,7 @@ export default function AIChatPanel() {
     setProposals((previous) => previous.filter((proposal) => proposal.id !== id))
   }
 
-  function approveProposal(action: AgentAction) {
+  async function approveProposal(action: AgentAction) {
     if (action.type === "write") {
       const exists = getAllPaths(fileTree).includes(action.path)
       if (exists) {
@@ -124,8 +125,34 @@ export default function AIChatPanel() {
       deleteNode(action.path)
       setActivePanel("files")
     } else if (action.type === "run") {
-      setActivePanel("terminal")
-      setTerminalBridgeCmd({ cmd: action.command, targetType: "shell" })
+      const directRun = action.command.trim().match(/^(?:run|node|python(?:3)?|java)\s+([^\s]+)$/i)
+      const sourcePath = directRun?.[1]
+      const sourceFile = sourcePath
+        ? useIDEStore.getState().flatFiles.get(sourcePath) ?? Array.from(useIDEStore.getState().flatFiles.values()).find((file) => file.type === "file" && file.name === sourcePath)
+        : undefined
+      if (sourceFile?.type === "file") {
+        const extension = sourceFile.name.split(".").pop()?.toLowerCase() || sourceFile.language || ""
+        openTab(sourceFile)
+        setActivePanel("preview")
+        setPreviewResult(null)
+        setIsRunning(true)
+        try {
+          const result = await execute(extension, sourceFile.content || "")
+          setPreviewResult({
+            stdout: result.stdout,
+            stderr: result.stderr,
+            exitCode: result.exitCode,
+            tier: result.tier,
+            capability: result.capability,
+            executionTime: result.executionTime,
+          })
+        } finally {
+          setIsRunning(false)
+        }
+      } else {
+        setActivePanel("terminal")
+        setTerminalBridgeCmd({ cmd: action.command, targetType: "shell" })
+      }
     } else if (action.type === "preview") {
       if (action.path) {
         const previewFile = useIDEStore.getState().flatFiles.get(action.path)
@@ -213,7 +240,7 @@ export default function AIChatPanel() {
     setInput(e.target.value)
     const ta = e.target
     ta.style.height = "auto"
-    ta.style.height = Math.min(ta.scrollHeight, 120) + "px"
+    ta.style.height = Math.min(ta.scrollHeight, 240) + "px"
   }
 
   return (
@@ -277,7 +304,7 @@ export default function AIChatPanel() {
               {proposal.type === "run" && <pre style={{ margin: 0, padding: "0.55rem", borderRadius: 6, background: "rgba(0,0,0,0.24)", color: "#e2c08d", fontSize: 10, whiteSpace: "pre-wrap" }}>{proposal.command}</pre>}
               {proposal.type === "preview" && <div style={{ color: "var(--text-muted)", fontSize: 10 }}>Preview target: {proposal.path || "active workspace preview"}</div>}
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-primary" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => approveProposal(proposal)}>Approve</button>
+                <button className="btn btn-primary" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => void approveProposal(proposal)}>Approve</button>
                 <button className="btn btn-ghost" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => removeProposal(proposal.id)}>Decline</button>
               </div>
             </div>
@@ -396,9 +423,10 @@ export default function AIChatPanel() {
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder={noKey ? "Add API key or enable Free SK-AI in Settings..." : "Ask SK-AI anything... (Enter to send)"}
+            placeholder={noKey ? "Add API key or enable Free SK-AI in Settings..." : "Describe the task, paste code, or request an approved workspace action…"}
             disabled={aiTyping}
             rows={1}
+            aria-label="SK-AI message"
           />
           <button
             className="ai-send-btn"
