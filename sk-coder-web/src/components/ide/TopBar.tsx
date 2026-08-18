@@ -31,6 +31,7 @@ export default function TopBar() {
 
     if (["html", "htm"].includes(ext)) {
       const html = buildPreview(fileTree, activeFile.path)
+      setPreviewResult(null)
       setPreviewContent(html)
       setActivePanel("preview")
       toast.success("Preview ready")

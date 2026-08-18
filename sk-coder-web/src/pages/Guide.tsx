@@ -38,20 +38,20 @@ export default function GuidePage() {
 
         <h2>Running Code</h2>
 
-        <h3>Python</h3>
-        <p>Python 3.12 runs in your browser using Pyodide. The first load takes 10–30 seconds. Open Terminal → Python tab and type code interactively.</p>
+        <h3>Result & Preview</h3>
+        <p>Press Run for the current file. HTML opens in Preview. Other supported source files open Console automatically, with Problems, Files Produced, and Runtime available from the same result area.</p>
 
-        <h3>JavaScript</h3>
-        <p>Runs directly in the browser via the JS or Node.js terminal tabs.</p>
+        <h3>Source files</h3>
+        <p>Python, Node.js, Java, C, C++, Rust, Go, PHP, Ruby, Kotlin, and other supported source files use the available execution service. Runtime always identifies the source of the result. A source fallback can run one file, but it cannot install packages or replace a project workspace.</p>
 
-        <h3>C++, Java, Rust, Go, and more</h3>
-        <p>Compiled via the Piston API (free, no account). Requires internet. Use the C++ terminal tab.</p>
+        <h3>Terminals</h3>
+        <p>SK Shell is the full project terminal for commands, folders, packages, and build tools. Python Run, Node Run, and Java Run are source-run tabs for quick snippets. Add another SK Shell when you need a separate current directory or command history.</p>
 
         <h3>HTML / CSS Preview</h3>
         <p>Running an HTML file automatically opens the Preview tab. Linked CSS and JS are inlined so the preview works without a server.</p>
 
         <h2>AI Assistant</h2>
-        <p>Works with any API key — the provider and model are auto-detected from your key format.</p>
+        <p>SK-AI can explain code and propose workspace changes. It never writes files, runs commands, or opens previews automatically: you review and approve each proposed action.</p>
 
         <div className="step-box">
           <div className="step-num">1</div>
@@ -63,11 +63,11 @@ export default function GuidePage() {
         </div>
         <div className="step-box">
           <div className="step-num">3</div>
-          <div>Click <strong>Connect & Validate</strong> — provider and model are detected automatically</div>
+          <div>Choose a supported provider and model, then validate the connection</div>
         </div>
         <div className="step-box">
           <div className="step-num">4</div>
-          <div>Open the AI tab and start chatting. The current file is attached as context automatically.</div>
+          <div>Open the AI tab and start chatting. Review every proposed write, command, or preview action before approving it.</div>
         </div>
 
         <h2>GitHub & Codespaces (SK Git)</h2>

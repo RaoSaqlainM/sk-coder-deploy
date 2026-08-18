@@ -107,9 +107,9 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
       toggleFolder(node.path)
     } else {
       openTab(node)
+      setActivePanel("editor")
       if (window.innerWidth < 768) {
         setSidebarOpen(false)
-        setActivePanel("editor")
       }
     }
   }

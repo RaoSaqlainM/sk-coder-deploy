@@ -31,6 +31,10 @@ export default function PreviewPane() {
   }, [previewKey, fileTree, showExternal, activeFile?.path, viewport])
 
   useEffect(() => {
+    setResultMode(previewResult ? "console" : "preview")
+  }, [previewResult])
+
+  useEffect(() => {
     function handle(e: MessageEvent) {
       if (e.data?.type === "console") {
         const level = e.data.level || "log"
@@ -96,14 +100,14 @@ export default function PreviewPane() {
   return (
     <div className="preview-panel">
       <div className="preview-toolbar">
-        <div style={{ display: "flex", gap: 2, flexShrink: 0, borderRight: "1px solid var(--border)", paddingRight: 6, marginRight: 2 }}>
+        <div className="preview-mode-group">
           {modeButtons.map((mode) => (
             <button key={mode.id} className={`preview-viewport-btn ${resultMode === mode.id ? "active" : ""}`} onClick={() => setResultMode(mode.id)} title={mode.label}>
               <span>{mode.label}</span>
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+        <div className="preview-viewport-group">
           {(["mobile", "tablet", "desktop"] as PreviewViewport[]).map((v) => (
             <button
               key={v}

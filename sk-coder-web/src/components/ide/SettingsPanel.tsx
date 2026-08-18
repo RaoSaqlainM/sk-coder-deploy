@@ -404,18 +404,19 @@ export default function SettingsPanel() {
                     </div>
                   </div>
                   <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: "0.5rem" }}>
-                    SK Coder is a professional mobile-first web IDE built for developers. Write, run, and deploy code in Python, JavaScript, Node.js, Java, and more — all from your browser with no setup required.
+                    SK Coder is a mobile-first web IDE for writing, organizing, running, and reviewing code from one workspace.
                   </p>
                 </div>
 
                 <div className="settings-section">
-                  <div className="settings-section-title">How to Use</div>
+                  <div className="settings-section-title">User Guide</div>
                   {[
-                    { icon: "📁", title: "Files", text: "Tap the Files icon in the bottom nav to open the file explorer. Create files, folders, and import your projects." },
-                    { icon: "✏️", title: "Editor", text: "Tap the code icon to open the editor. Full syntax highlighting with 50+ languages supported." },
-                    { icon: "▶️", title: "Run Code", text: "Press the green Run button to execute the active file. HTML files open in Preview, code runs in the terminal." },
-                    { icon: "💬", title: "SK-AI", text: "Tap the AI icon for the AI chat panel, or open the SK-AI tab in the Terminal for inline AI help." },
-                    { icon: "🖥️", title: "Terminal", text: "Use SK-Shell, Python 3, Node.js, Java, or SK-AI tabs. Type 'help' in SK-Shell to see all commands." },
+                    { icon: "📁", title: "Files and Editor", text: "Open Files from the bottom navigation. Selecting a file opens it in the Editor automatically. Use the three-dot menu for file actions and the Import button for files or a ZIP project." },
+                    { icon: "▶️", title: "Run and Results", text: "Press the green Run button for the active file. HTML opens in Preview. Code results open in Console automatically. Use Problems for errors, Files Produced for generated artifacts, and Runtime to see where the result came from." },
+                    { icon: "📱", title: "Preview Sizes", text: "In Result & Preview, choose Mobile, Tablet, or Desktop. The selected frame is only a visual test size; it does not change your source files." },
+                    { icon: "🖥️", title: "Terminals", text: "SK Shell is the full project terminal. Use it for folders, packages, build tools, and commands. Python Run, Node Run, and Java Run are quick source runners, not full command terminals." },
+                    { icon: "↔️", title: "More SK Shell Tabs", text: "Add another SK Shell when you need separate working folders or command history. Each full-shell tab keeps its own terminal state while working with the same workspace files." },
+                    { icon: "💬", title: "SK-AI", text: "Ask SK-AI to explain, plan, write, run, or preview code. It proposes file changes and commands first. Nothing is changed or run until you approve each proposal." },
                     { icon: "🐙", title: "GitHub", text: "Connect your GitHub token to push projects, browse repos, and open Codespaces directly." },
                   ].map((item) => (
                     <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}>

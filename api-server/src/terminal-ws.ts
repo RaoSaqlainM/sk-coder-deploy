@@ -1,16 +1,17 @@
-import { Server } from "node:http"
+import { IncomingMessage, Server } from "node:http"
 import { WebSocket, WebSocketServer } from "ws"
-import { createWorkspaceSession, openInteractiveTerminal, terminateInteractiveTerminal } from "./lib/sessionManager.js"
+import { createWorkspaceSession, getWorkspaceSession, openInteractiveTerminal, terminateInteractiveTerminal } from "./lib/sessionManager.js"
 
 export function setupTerminalWs(server: Server) {
   const wss = new WebSocketServer({ noServer: true })
   server.on("upgrade", (request, socket, head) => {
     if (new URL(request.url || "/", "http://localhost").pathname !== "/api/ws/terminal") return socket.destroy()
-    wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws))
+    wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws, request))
   })
-  wss.on("connection", async (ws: WebSocket) => {
+  wss.on("connection", async (ws: WebSocket, request: IncomingMessage) => {
     try {
-      const session = await createWorkspaceSession()
+      const requestedSessionId = new URL(request.url || "/", "http://localhost").searchParams.get("sessionId")
+      const session = requestedSessionId ? await getWorkspaceSession(requestedSessionId) : await createWorkspaceSession()
       const terminal = await openInteractiveTerminal(session.id,
         (data) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "stdout", data })),
         (data) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "stderr", data })),

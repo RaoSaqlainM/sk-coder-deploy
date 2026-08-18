@@ -61,7 +61,7 @@ async function sendViaPuter(prompt: string): Promise<string> {
 export default function AIChatPanel() {
   const {
     aiChatMessages, aiTyping, settings, addAIChatMessage, clearAIChat,
-    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree, addFile, updateFileContent, deleteNode, setTerminalBridgeCmd, setActivePanel,
+    setAITyping, setShowSettings, setSettingsTab, getActiveFile, fileTree, addFile, updateFileContent, deleteNode, setTerminalBridgeCmd, setActivePanel, openTab,
   } = useIDEStore()
   const [input, setInput] = useState("")
   const [proposals, setProposals] = useState<AgentAction[]>([])
@@ -89,7 +89,11 @@ export default function AIChatPanel() {
   function approveProposal(action: AgentAction) {
     if (action.type === "write") {
       const exists = getAllPaths(fileTree).includes(action.path)
-      if (exists) updateFileContent(action.path, action.content)
+      if (exists) {
+        updateFileContent(action.path, action.content)
+        const existingFile = useIDEStore.getState().flatFiles.get(action.path)
+        if (existingFile) openTab(existingFile)
+      }
       else {
         const separator = action.path.lastIndexOf("/")
         const parent = separator <= 0 ? "/" : action.path.slice(0, separator)
@@ -102,8 +106,13 @@ export default function AIChatPanel() {
     } else if (action.type === "delete") {
       deleteNode(action.path)
     } else if (action.type === "run") {
+      setActivePanel("terminal")
       setTerminalBridgeCmd({ cmd: action.command, targetType: "shell" })
     } else if (action.type === "preview") {
+      if (action.path) {
+        const previewFile = useIDEStore.getState().flatFiles.get(action.path)
+        if (previewFile) openTab(previewFile)
+      }
       setActivePanel("preview")
     }
     removeProposal(action.id)

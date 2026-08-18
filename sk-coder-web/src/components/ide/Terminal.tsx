@@ -4,12 +4,13 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useIDEStore } from "@/store/ideStore"
-import { execute } from "@/lib/executorChain"
+import { execute, type ExecResponse } from "@/lib/executorChain"
 import { createTerminalWebSocket, getWorkspaceLifecycle, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy"
 import type { FileNode, AIChatMessage } from "@/types/ide"
+import { buildPreview } from "@/lib/previewBuilder"
 
 declare global {
   interface Window {
@@ -221,7 +222,7 @@ function loadPersistedTerminalState() {
 }
 
 export default function MultiTerminal() {
-  const { fileTree, addFile, settings, getActiveFile, setShowSettings, setSettingsTab, terminalBridgeCmd, setTerminalBridgeCmd, setErrors } = useIDEStore()
+  const { fileTree, addFile, settings, getActiveFile, setShowSettings, setSettingsTab, terminalBridgeCmd, setTerminalBridgeCmd, setErrors, setActivePanel, setPreviewContent, setPreviewResult } = useIDEStore()
 
   const [tabs, setTabs] = useState<TabDef[]>(() => loadPersistedTerminalState()?.tabs ?? DEFAULT_TABS)
   const [activeTab, setActiveTab] = useState(() => loadPersistedTerminalState()?.activeTab ?? "shell-1")
@@ -236,9 +237,8 @@ export default function MultiTerminal() {
 
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const terminalSocketRef = useRef<ReturnType<typeof createTerminalWebSocket> | null>(null)
+  const terminalSocketsRef = useRef(new Map<string, ReturnType<typeof createTerminalWebSocket>>())
   const workspaceSessionIdRef = useRef<string | null>(null)
-  const activeShellTabRef = useRef("shell-1")
 
   const activeState = tabStates[activeTab] ?? initState("shell")
   const activeType = tabs.find((t) => t.id === activeTab)?.type ?? "shell"
@@ -261,34 +261,49 @@ export default function MultiTerminal() {
     inputRef.current?.focus()
   }, [activeTab])
 
+  function connectShell(tabId: string, requestedSessionId?: string | null) {
+    if (!settings.backend.enabled || terminalSocketsRef.current.has(tabId)) return
+    const savedSessionId = requestedSessionId ?? workspaceSessionIdRef.current ?? localStorage.getItem("sk-coder-workspace-session-id")
+    const socket = createTerminalWebSocket({
+      onReady: (sessionId) => {
+        workspaceSessionIdRef.current = sessionId
+        localStorage.setItem("sk-coder-workspace-session-id", sessionId)
+        addLine(tabId, "success", savedSessionId ? "Connected to shared isolated workspace session." : "Connected to isolated workspace session.")
+        void getWorkspaceLifecycle(sessionId).then(setWorkspaceLifecycle).catch(() => setWorkspaceLifecycle(null))
+      },
+      onStdout: (data) => addLines(tabId, "output", data),
+      onStderr: (data) => addLines(tabId, "error", data),
+      onExit: (code) => addLine(tabId, "info", `Process exited with code ${code}`),
+      onError: (message) => {
+        terminalSocketsRef.current.delete(tabId)
+        if (savedSessionId) {
+          localStorage.removeItem("sk-coder-workspace-session-id")
+          workspaceSessionIdRef.current = null
+          connectShell(tabId, null)
+          return
+        }
+        addLine(tabId, "error", message)
+      },
+    }, savedSessionId || undefined)
+    terminalSocketsRef.current.set(tabId, socket)
+  }
+
   useEffect(() => {
     if (!settings.backend.enabled) return
     let disposed = false
-    let socket: ReturnType<typeof createTerminalWebSocket> | null = null
     void isBackendAvailable().then((available) => {
       if (disposed || !available) {
-        if (!disposed) addLine(activeShellTabRef.current, "info", "Oracle workspace session unavailable. Source-code tabs will use live execution fallbacks.")
+        if (!disposed) addLine("shell-1", "info", "Oracle workspace session unavailable. Source-code tabs will use live execution fallbacks.")
         return
       }
-      socket = createTerminalWebSocket({
-        onReady: (sessionId) => {
-          workspaceSessionIdRef.current = sessionId
-          addLine(activeShellTabRef.current, "success", "Connected to isolated workspace session.")
-          void getWorkspaceLifecycle(sessionId).then(setWorkspaceLifecycle).catch(() => setWorkspaceLifecycle(null))
-        },
-        onStdout: (data) => addLines(activeShellTabRef.current, "output", data),
-        onStderr: (data) => addLines(activeShellTabRef.current, "error", data),
-        onExit: (code) => addLine(activeShellTabRef.current, "info", `Process exited with code ${code}`),
-        onError: () => { workspaceSessionIdRef.current = null; setWorkspaceLifecycle(null) },
-      })
-      terminalSocketRef.current = socket
+      connectShell("shell-1")
     })
     return () => {
       disposed = true
-      terminalSocketRef.current = null
       workspaceSessionIdRef.current = null
       setWorkspaceLifecycle(null)
-      socket?.close()
+      for (const socket of terminalSocketsRef.current.values()) socket.close()
+      terminalSocketsRef.current.clear()
     }
   }, [settings.backend.enabled])
 
@@ -366,6 +381,18 @@ export default function MultiTerminal() {
     for (const p of parts) addLine(tabId, type, p)
   }
 
+  function publishExecutionResult(result: ExecResponse) {
+    setPreviewResult({
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+      tier: result.tier,
+      capability: result.capability,
+      executionTime: result.executionTime,
+    })
+    setActivePanel("preview")
+  }
+
 const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
 
   function clearTab(tabId: string) {
@@ -388,12 +415,15 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
     setTabStates((prev) => ({ ...prev, [id]: initState(type) }))
     setActiveTab(id)
     setShowAddMenu(false)
+    if (type === "shell") connectShell(id)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   function closeTab(tabId: string) {
     if (tabs.length === 1) return
     const idx = tabs.findIndex((t) => t.id === tabId)
+    terminalSocketsRef.current.get(tabId)?.close()
+    terminalSocketsRef.current.delete(tabId)
     const newTabs = tabs.filter((t) => t.id !== tabId)
     setTabs(newTabs)
     if (activeTab === tabId) {
@@ -409,11 +439,11 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
   async function handleShell(tabId: string, input: string) {
     const state = tabStates[tabId]
     const cwd = state?.cwd || "/"
-    if (workspaceSessionIdRef.current && terminalSocketRef.current) {
+    const terminalSocket = terminalSocketsRef.current.get(tabId)
+    if (workspaceSessionIdRef.current && terminalSocket) {
       try {
-        activeShellTabRef.current = tabId
         await syncWorkspaceFiles(workspaceSessionIdRef.current, collectWorkspaceFiles(fileTree))
-        terminalSocketRef.current.sendCommand(input)
+        terminalSocket.sendCommand(input)
         return
       } catch (error) {
         workspaceSessionIdRef.current = null
@@ -513,6 +543,14 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
       updateState(tabId, { running: true })
       addLine(tabId, "info", `Running ${filename}...`)
 
+      if (cmd === "run" && ["html", "htm"].includes(ext)) {
+        setPreviewResult(null)
+        setPreviewContent(buildPreview(fileTree, path))
+        setActivePanel("preview")
+        updateState(tabId, { running: false })
+        return
+      }
+
       if (cmd === "python" || (cmd === "run" && ext === "py")) {
         await handlePython(tabId, code)
       } else if (cmd === "node" || (cmd === "run" && ["js", "jsx", "ts", "tsx", "mjs", "cjs"].includes(ext))) {
@@ -524,6 +562,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
         if (res.stdout) addLines(tabId, "output", res.stdout.trimEnd())
         if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
         if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
+        publishExecutionResult(res)
       } else {
         addLine(tabId, "error", `Cannot run .${ext} files`)
       }
@@ -550,6 +589,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
     }
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
     if (res.executionTime > 0) addLine(tabId, "info", `⏱ ${res.executionTime}ms | exit ${res.exitCode}`)
+    publishExecutionResult(res)
   }
 
   async function handleNodeJs(tabId: string, code: string) {
@@ -575,6 +615,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
     if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
     if (res.executionTime > 0) addLine(tabId, "info", `⏱ ${res.executionTime}ms | exit ${res.exitCode}`)
+    publishExecutionResult(res)
   }
 
   async function handleJava(tabId: string, code: string) {
@@ -584,6 +625,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
     if (res.stderr) addLines(tabId, "error", res.stderr.trimEnd())
     if (!res.stdout && !res.stderr) addLine(tabId, "info", "(no output)")
     if (res.executionTime > 0) addLine(tabId, "info", `⏱ ${res.executionTime}ms | exit ${res.exitCode}`)
+    publishExecutionResult(res)
   }
 
   async function handleAI(tabId: string, question: string) {
@@ -801,17 +843,17 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
               <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current
                 if (!sessionId) return
-                void setWorkspaceRetention(sessionId, "three-days").then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+                void setWorkspaceRetention(sessionId, "three-days").then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)))
               }}>Keep 3d</button>
               <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current
                 if (!sessionId || !window.confirm("Schedule this cloud workspace for deletion four hours after you leave?")) return
-                void setWorkspaceRetention(sessionId, "four-hours").then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+                void setWorkspaceRetention(sessionId, "four-hours").then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)))
               }}>Delete in 4h</button>
               <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem", color: "#f97583" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current
                 if (!sessionId || !window.confirm("Schedule deletion with a one-hour undo period?")) return
-                void scheduleWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(activeShellTabRef.current, "error", String(error)))
+                void scheduleWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)))
               }}>Delete</button>
             </>
           )}

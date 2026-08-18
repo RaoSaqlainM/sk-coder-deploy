@@ -132,8 +132,9 @@ export type TerminalSocketHandlers = {
   onError: (error: string) => void
 }
 
-export function createTerminalWebSocket(handlers: TerminalSocketHandlers) {
-  const ws = new WebSocket(WS_BASE)
+export function createTerminalWebSocket(handlers: TerminalSocketHandlers, sessionId?: string) {
+  const endpoint = sessionId ? `${WS_BASE}?sessionId=${encodeURIComponent(sessionId)}` : WS_BASE
+  const ws = new WebSocket(endpoint)
   ws.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data as string) as { type?: string; data?: string; code?: number; sessionId?: string }

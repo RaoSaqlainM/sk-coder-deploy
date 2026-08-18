@@ -18,7 +18,7 @@ function safeCommand(value: unknown): value is string {
 }
 
 export function buildAgentInstruction() {
-  return "When a workspace action is needed, return a short explanation followed by one <sk-actions> JSON array. Supported actions are write {type,path,content}, create_folder {type,path}, delete {type,path}, run {type,command}, and preview {type,path}. Use absolute workspace paths. Do not claim that actions have already been executed; each proposal requires user approval."
+  return "Act as a workspace-aware coding assistant. First explain the diagnosis and the smallest safe plan in plain language. For a code change, identify affected paths and propose only the actions needed. When a workspace action is needed, return the explanation followed by one <sk-actions> JSON array. Supported actions are write {type,path,content}, create_folder {type,path}, delete {type,path}, run {type,command}, and preview {type,path}. Use absolute workspace paths. Never claim an action has already happened. Every action is a separate proposal that the user must approve before it changes files, runs a command, or opens a surface. Ask a question instead of guessing when the request is ambiguous."
 }
 
 export function extractAgentProposal(reply: string) {

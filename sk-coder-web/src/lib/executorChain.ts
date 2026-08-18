@@ -15,6 +15,7 @@ type RuntimeConfig = {
   backend: string
   wandboxPrefixes: string[]
   filename: string
+  compilerFilter?: (name: string) => boolean
 }
 
 type WandboxCompiler = { name: string }
@@ -37,9 +38,9 @@ const RUNTIME_CONFIGS: Record<string, RuntimeConfig> = {
   python3: { backend: "python", wandboxPrefixes: ["cpython-"], filename: "main.py" },
   py: { backend: "python", wandboxPrefixes: ["cpython-"], filename: "main.py" },
   java: { backend: "java", wandboxPrefixes: ["openjdk-jdk-", "openjdk-"], filename: "Main.java" },
-  c: { backend: "c", wandboxPrefixes: ["gcc-"], filename: "main.c" },
-  cpp: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp" },
-  cc: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp" },
+  c: { backend: "c", wandboxPrefixes: ["gcc-"], filename: "main.c", compilerFilter: (name) => name.endsWith("-c") },
+  cpp: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp", compilerFilter: (name) => !name.endsWith("-c") && !name.endsWith("-pp") },
+  cc: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp", compilerFilter: (name) => !name.endsWith("-c") && !name.endsWith("-pp") },
   rust: { backend: "rust", wandboxPrefixes: ["rust-"], filename: "main.rs" },
   rs: { backend: "rust", wandboxPrefixes: ["rust-"], filename: "main.rs" },
   go: { backend: "go", wandboxPrefixes: ["go-"], filename: "main.go" },
@@ -77,7 +78,7 @@ async function tryWandbox(language: string, code: string): Promise<ExecResponse 
     const config = RUNTIME_CONFIGS[language]
     if (!config || config.wandboxPrefixes.length === 0) return null
     const compilers = await getWandboxCatalog()
-    const matches = compilers.filter((item) => config.wandboxPrefixes.some((prefix) => item.name.startsWith(prefix)))
+    const matches = compilers.filter((item) => config.wandboxPrefixes.some((prefix) => item.name.startsWith(prefix)) && (!config.compilerFilter || config.compilerFilter(item.name)))
     const compiler = matches.find((item) => !item.name.includes("head")) ?? matches[0]
     if (!compiler) return null
     const response = await fetch(WANDBOX_RUN_URL, {

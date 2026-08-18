@@ -40,3 +40,10 @@
 - [x] Expand runtime registry and runtime capability disclosure without claiming unavailable toolchains.
 - [ ] Implement workspace history, Trash recovery, and explicit deletion controls.
 - [x] Run a temporary local backend/frontend integration demonstration and record verified behavior.
+- [x] Re-test every supported source runner and document genuine Oracle-only versus public-fallback limitations.
+- [x] Repair file-opening navigation so selecting a file opens it in the Editor and relevant run actions route to Result & Preview.
+- [x] Repair source-run routing for C, C++, Python, Java, Node, and other installed runtime families without misdirecting shell commands.
+- [x] Verify and repair terminal tab lifecycle, per-terminal working directories, and full-shell availability disclosure.
+- [x] Strengthen the approval-gated SK-AI workflow so it explains actions clearly and routes approved workspace actions to the intended UI surface.
+- [x] Improve mobile, tablet, and desktop Result & Preview layouts without changing the established IDE layout.
+- [x] Add a public in-product user guide that explains files, terminals, results, preview, and AI permissions without exposing internal plans or infrastructure details.
