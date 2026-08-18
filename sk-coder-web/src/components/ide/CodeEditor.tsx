@@ -3,12 +3,13 @@ import MonacoEditor, { OnMount } from "@monaco-editor/react"
 import { useIDEStore } from "@/store/ideStore"
 import { formatCode, isSupportedLanguage } from "@/lib/formatter"
 import { toast } from "sonner"
+import { analyzeSourceSyntax } from "@/lib/syntaxDiagnostics"
 
 export default function CodeEditor() {
   const {
     openTabs, activeTabId, getActiveFile, getFileContent,
     updateFileContent, markTabModified, settings, setIsRunning,
-    addTerminalLine, setActivePanel,
+    addTerminalLine, setActivePanel, errors, setErrors,
   } = useIDEStore()
 
   const activeFile = getActiveFile()
@@ -110,6 +111,29 @@ export default function CodeEditor() {
   }
 
   const activeContent = activeFile ? (getFileContent(activeFile.path) || activeFile.content || "") : ""
+
+  useEffect(() => {
+    if (!activeFile) return
+    setErrors(analyzeSourceSyntax(activeContent, activeFile.language, activeFile.path))
+  }, [activeFile?.path, activeFile?.language, activeContent, setErrors])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    const model = editor?.getModel()
+    if (!editor || !monaco || !model || !activeFile) return
+    const markers = errors
+      .filter((error) => !error.file || error.file === activeFile.path || activeFile.path.endsWith(error.file))
+      .map((error) => ({
+        startLineNumber: Math.max(1, error.line),
+        startColumn: Math.max(1, error.col || 1),
+        endLineNumber: Math.max(1, error.line),
+        endColumn: Math.max(2, (error.col || 1) + 1),
+        message: error.message,
+        severity: error.severity === "warning" ? monaco.MarkerSeverity.Warning : error.severity === "info" ? monaco.MarkerSeverity.Info : monaco.MarkerSeverity.Error,
+      }))
+    monaco.editor.setModelMarkers(model, "sk-coder-diagnostics", markers)
+  }, [activeFile?.path, errors])
 
   function handleChange(value: string | undefined) {
     if (!activeFile || value === undefined) return

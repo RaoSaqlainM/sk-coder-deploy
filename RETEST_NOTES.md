@@ -16,6 +16,16 @@
 | Mobile Result & Preview | At 390 × 844, result modes occupy a reachable first row and compact viewport controls, URL entry, and actions occupy a second row without compression or overlap. | Passed |
 | About user guide | Settings → About displays the public User Guide with files, editor, results, preview sizes, terminal types, independent SK Shell tabs, and approval-gated SK-AI behavior. | Passed |
 | Existing file selection on mobile | Selecting `/probe.cpp` from the Files drawer closed the drawer and opened the file in the Editor. The same click handler now selects the Editor at every viewport size. | Passed |
+| Separate Editor surface | After closing the Explorer dock, the active editor filled the desktop workspace without a permanently merged file sidebar. | Passed |
+| Explorer first interaction | Activating Files from Editor displayed Explorer independently across the main workspace, with no editor side-by-side. | Passed |
+| Explorer second interaction | Activating Files again from standalone Explorer docked Explorer beside the active Editor as an intentional optional layout. | Passed |
+| Terminal surface | The visible terminal tabs are now SK Shell and AI only; legacy Python and Java source tabs are absent. Oracle-runtime unavailability is surfaced as an explicit deployment status rather than a fabricated shell result. | Passed |
+| Latest desktop reload | The revised Explorer/Editor workspace reloaded successfully with the current source file and no browser console errors. | Passed |
+| Reload stability after terminal cleanup | The current desktop IDE reload remained stable after the terminal transcript cleanup. | Passed |
+| Final SK Shell transcript | SK Shell now shows one clear Oracle Docker availability status, offers only SK Shell and AI tabs, and retains an interactive command input. | Passed |
+| Editor transition | Selecting Editor from SK Shell returned to the active C++ file in the separate full-width editor surface. | Passed |
+| C++ diagnostics | A controlled unclosed-brace C++ edit produced line-specific Problems entries for both unmatched braces; restoring valid content removed the temporary diagnostics. | Passed |
+| Diagnostic test cleanup | The browser workspace was reset to the original valid `probe.cpp` content after the controlled syntax test. | Passed |
 
 ## Immediate repairs
 

@@ -42,6 +42,11 @@ export default function IndexPage() {
         )}
 
         <div className="ide-center">
+          {activePanel === "files" && (
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <FileExplorer />
+            </div>
+          )}
           <div className="ide-editor-area" style={{ display: activePanel === "editor" ? "flex" : "none", position: "relative" }}>
             <EditorTabs />
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>

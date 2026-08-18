@@ -165,8 +165,9 @@ export function buildSystemPrompt(opts: {
   activeFilePath?: string
   activeFileContent?: string
   fileTree?: string[]
+  workspaceFiles?: { path: string; content: string }[]
 }): string {
-  const { activeFilePath, activeFileContent, fileTree } = opts
+  const { activeFilePath, activeFileContent, fileTree, workspaceFiles } = opts
   let prompt = `You are an expert coding assistant built into SK Coder IDE by Saqlain King. Help developers write, debug, explain, and improve code across all languages.
 
 Guidelines:
@@ -174,7 +175,10 @@ Guidelines:
 - Format code in markdown code blocks with language specified
 - When fixing bugs, explain what was wrong and why the fix works
 - Suggest best practices for the language/framework
-- Be direct and technical`
+- Be direct and technical
+- You can inspect the supplied workspace file map and excerpts. Do not say that you cannot read the active file or listed excerpts.
+- Do not claim access to files, terminal output, packages, or runtime state that are not included in the supplied context.
+- If a needed file is not included, name the path you need and ask the user to open it or request a scoped read.`
 
   if (fileTree && fileTree.length > 0) {
     prompt += `\n\nProject files:\n${fileTree.slice(0, 30).join("\n")}`
@@ -185,6 +189,10 @@ Guidelines:
   if (activeFileContent) {
     const preview = activeFileContent.slice(0, 2000)
     prompt += `\n\nFile content:\n\`\`\`\n${preview}${activeFileContent.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\``
+  }
+  if (workspaceFiles && workspaceFiles.length > 0) {
+    const excerpts = workspaceFiles.slice(0, 8).map((file) => `Path: ${file.path}\n\`\`\`\n${file.content.slice(0, 1600)}${file.content.length > 1600 ? "\n... (truncated)" : ""}\n\`\`\``).join("\n\n")
+    prompt += `\n\nWorkspace excerpts:\n${excerpts}`
   }
   return prompt
 }

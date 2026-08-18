@@ -1,8 +1,11 @@
 import { useIDEStore } from "@/store/ideStore"
 
 export default function StatusBar() {
-  const { getActiveFile, settings, isRunning, terminalType, setActivePanel, setShowSettings, setSettingsTab } = useIDEStore()
+  const { getActiveFile, settings, isRunning, terminalType, setActivePanel, setShowSettings, setSettingsTab, errors } = useIDEStore()
   const activeFile = getActiveFile()
+  const activeErrors = errors.filter((error) => !activeFile || !error.file || error.file === activeFile.path || activeFile.path.endsWith(error.file))
+  const errorCount = activeErrors.filter((error) => error.severity === "error").length
+  const warningCount = activeErrors.filter((error) => error.severity === "warning").length
 
   function openAISettings() {
     setShowSettings(true)
@@ -39,6 +42,13 @@ export default function StatusBar() {
       {activeFile && (
         <div className="status-bar-item" title={activeFile.path}>
           <span>{activeFile.language || "plaintext"}</span>
+        </div>
+      )}
+
+      {(errorCount > 0 || warningCount > 0) && (
+        <div className="status-bar-item clickable" onClick={() => setActivePanel("editor")} title="Open editor diagnostics">
+          {errorCount > 0 && <span style={{ color: "#f38ba8" }}>✕ {errorCount}</span>}
+          {warningCount > 0 && <span style={{ color: "#f9e2af" }}>⚠ {warningCount}</span>}
         </div>
       )}
 

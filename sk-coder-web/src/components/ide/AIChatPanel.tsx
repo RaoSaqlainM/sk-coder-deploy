@@ -29,6 +29,21 @@ function getAllPaths(nodes: ReturnType<typeof useIDEStore.getState>["fileTree"])
   return paths
 }
 
+function getWorkspaceFiles(nodes: ReturnType<typeof useIDEStore.getState>["fileTree"], activePath?: string) {
+  const files: { path: string; content: string }[] = []
+  function walk(entries: typeof nodes) {
+    for (const entry of entries) {
+      if (entry.type === "file") files.push({ path: entry.path, content: entry.content || "" })
+      if (entry.children) walk(entry.children)
+    }
+  }
+  walk(nodes)
+  return files.sort((a, b) => {
+    const score = (path: string) => path === activePath ? 0 : /(?:package\.json|README|tsconfig|vite\.config|requirements\.txt|Cargo\.toml|pom\.xml)$/i.test(path) ? 1 : 2
+    return score(a.path) - score(b.path) || a.path.localeCompare(b.path)
+  }).slice(0, 8)
+}
+
 async function ensurePuter(): Promise<boolean> {
   if (window.puter) return true
   return new Promise((resolve) => {
@@ -138,6 +153,7 @@ export default function AIChatPanel() {
           activeFilePath: activeFile?.path,
           activeFileContent: settings.ai.autoContext ? activeFile?.content : undefined,
           fileTree: getAllPaths(fileTree),
+          workspaceFiles: getWorkspaceFiles(fileTree, activeFile?.path),
         })}\n\n${buildAgentInstruction()}`
         const fullPrompt = `${systemPrompt}\n\nUser: ${trimmed}`
         const reply = await sendViaPuter(fullPrompt)
@@ -147,6 +163,7 @@ export default function AIChatPanel() {
           activeFilePath: activeFile?.path,
           activeFileContent: settings.ai.autoContext ? activeFile?.content : undefined,
           fileTree: getAllPaths(fileTree),
+          workspaceFiles: getWorkspaceFiles(fileTree, activeFile?.path),
         })}\n\n${buildAgentInstruction()}`
 
         const messages: AIChatMessage[] = [

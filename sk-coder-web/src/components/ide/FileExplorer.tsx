@@ -108,9 +108,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     } else {
       openTab(node)
       setActivePanel("editor")
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false)
-      }
+      setSidebarOpen(false)
     }
   }
 

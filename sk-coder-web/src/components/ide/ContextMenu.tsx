@@ -61,7 +61,7 @@ export default function ContextMenu() {
     contextMenu, setContextMenu, deleteNode, setRenameNodeId,
     setNewItem, openTab, fileTree, setActivePanel, addTerminalLine,
     setTerminalInput, refreshPreview, setPreviewContent, clearTerminal,
-    getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode,
+    getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen,
   } = useIDEStore()
   const ref = useRef<HTMLDivElement>(null)
   const [clipboardState, setClipboardState] = useState<{ path: string; mode: "copy" | "move" } | null>(null)
@@ -69,9 +69,6 @@ export default function ContextMenu() {
 
   const TERM_OPTS = [
     { type: "shell",  label: "SK Shell",   color: "#10b981" },
-    { type: "python", label: "Python 3",   color: "#3b82f6" },
-    { type: "nodejs", label: "Node.js",    color: "#f59e0b" },
-    { type: "java",   label: "Java",       color: "#ef4444" },
     { type: "ai",     label: "AI Terminal",color: "#a78bfa" },
   ] as const
 
@@ -222,6 +219,8 @@ export default function ContextMenu() {
   function handleOpen() {
     if (!node || node.type !== "file") return
     openTab(node)
+    setActivePanel("editor")
+    setSidebarOpen(false)
     setContextMenu(null)
   }
 
@@ -237,24 +236,9 @@ export default function ContextMenu() {
 
   function handleRunTerminal() {
     if (!node || node.type !== "file") return
-    const engineMap: Record<string, string> = {
-      py: "python",
-      js: "nodejs",
-      jsx: "nodejs",
-      ts: "nodejs",
-      tsx: "nodejs",
-      java: "java",
-      cpp: "shell",
-      c: "shell",
-      go: "shell",
-      sh: "shell",
-      bash: "shell",
-      rs: "shell",
-    }
-    const engine = engineMap[ext] || "shell"
-    openFileInTerminal(node.path, engine)
+    openFileInTerminal(node.path, "shell")
     setContextMenu(null)
-    toast.success(`Running ${node.name} in ${engine} terminal`)
+    toast.success(`Opened ${node.name} in SK Shell`)
   }
 
   function handleOpenInTerminal(termType?: string) {

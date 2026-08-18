@@ -47,3 +47,10 @@
 - [x] Strengthen the approval-gated SK-AI workflow so it explains actions clearly and routes approved workspace actions to the intended UI surface.
 - [x] Improve mobile, tablet, and desktop Result & Preview layouts without changing the established IDE layout.
 - [x] Add a public in-product user guide that explains files, terminals, results, preview, and AI permissions without exposing internal plans or infrastructure details.
+- [x] Restore separate Explorer and Editor navigation so Files opens only the explorer and Editor opens only the active file, without a permanent merged desktop sidebar.
+- [x] Implement the requested two-step Explorer interaction: first activation shows the explorer and a second activation hides it without disrupting the active editor.
+- [x] Remove Python Run and Java Run source tabs, retaining SK Shell as the full backend terminal and clearly distinguishing any remaining non-shell runner.
+- [x] Clear stale Result & Preview state when the active file changes and ensure every run replaces the previous file’s Console, Problems, Runtime, and artifact result.
+- [x] Improve workspace-aware SK-AI context so approved actions can inspect selected files and workspace paths, propose changes, and route correctly without pretending to access unavailable runtime data.
+- [x] Add language-aware editor diagnostics and a bottom error/status bar for supported syntax and execution errors.
+- [x] Audit every configured language family and expose only real execution capabilities or honest unavailable states.

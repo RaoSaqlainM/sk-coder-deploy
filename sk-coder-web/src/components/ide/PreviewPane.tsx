@@ -6,7 +6,7 @@ import type { PreviewViewport } from "@/types/ide"
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
 
 export default function PreviewPane() {
-  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult } = useIDEStore()
+  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [externalUrl, setExternalUrl] = useState("")
   const [liveUrl, setLiveUrl] = useState("")
@@ -16,6 +16,15 @@ export default function PreviewPane() {
 
   const viewport = settings.preview.viewport
   const activeFile = getActiveFile()
+  const activePathRef = useRef<string | undefined>(activeFile?.path)
+
+  useEffect(() => {
+    if (activePathRef.current !== activeFile?.path) {
+      activePathRef.current = activeFile?.path
+      setPreviewResult(null)
+      setResultMode("preview")
+    }
+  }, [activeFile?.path, setPreviewResult])
 
   function buildAndSet() {
     if (showExternal) return

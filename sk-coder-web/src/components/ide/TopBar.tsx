@@ -42,10 +42,10 @@ export default function TopBar() {
     clearTerminal()
     setErrors([])
     setIsRunning(true)
+    setPreviewResult(null)
+    addTerminalLine({ type: "info", content: `▶ Running ${activeFile.name}...` })
 
     try {
-      addTerminalLine({ type: "info", content: `▶ Running ${activeFile.name}...` })
-
       const result = await unifiedExecute(ext, code)
 
       if (!result) {

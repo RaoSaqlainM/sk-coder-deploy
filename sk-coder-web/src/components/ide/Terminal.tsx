@@ -139,10 +139,7 @@ function isWorkspaceCommand(input: string) {
 }
 
 const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
-  { type: "shell", label: "SK Shell", desc: "Oracle workspace commands · local file utilities" },
-  { type: "python", label: "Python Run", desc: "Single source execution · project commands use SK Shell" },
-  { type: "nodejs", label: "Node Run", desc: "Single source execution · project commands use SK Shell" },
-  { type: "java", label: "Java Run", desc: "Single source execution · project commands use SK Shell" },
+  { type: "shell", label: "SK Shell", desc: "Real Oracle workspace terminal for Node.js, packages, builds, and commands" },
   { type: "ai", label: "AI", desc: "Ask code questions · get help" },
 ]
 
@@ -195,17 +192,11 @@ async function ensurePuterForTerm(): Promise<boolean> {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: "shell-1", type: "shell", label: "SK Shell" },
-  { id: "python-1", type: "python", label: "Python Run" },
-  { id: "nodejs-1", type: "nodejs", label: "Node Run" },
-  { id: "java-1", type: "java", label: "Java Run" },
   { id: "ai-1", type: "ai", label: "AI" },
 ]
 
 const DEFAULT_STATES: Record<string, TabState> = {
   "shell-1": initState("shell"),
-  "python-1": initState("python"),
-  "nodejs-1": initState("nodejs"),
-  "java-1": initState("java"),
   "ai-1": initState("ai"),
 }
 
@@ -215,7 +206,26 @@ function loadPersistedTerminalState() {
     if (!raw) return null
     const parsed = JSON.parse(raw) as { tabs?: TabDef[]; activeTab?: string; tabStates?: Record<string, TabState> }
     if (!parsed.tabs || !parsed.tabStates) return null
-    return parsed
+    const allowedTypes = new Set<TermType>(["shell", "ai"])
+    const tabs = parsed.tabs.filter((tab) => allowedTypes.has(tab.type))
+    if (!tabs.some((tab) => tab.type === "shell")) tabs.unshift({ id: "shell-1", type: "shell", label: "SK Shell" })
+    if (!tabs.some((tab) => tab.type === "ai")) tabs.push({ id: "ai-1", type: "ai", label: "AI" })
+    const tabStates: Record<string, TabState> = {}
+    for (const tab of tabs) {
+      const state = { ...(parsed.tabStates[tab.id] ?? initState(tab.type)), running: false }
+      if (tab.type === "shell") {
+        let unavailableSeen = false
+        state.lines = state.lines.filter((line) => {
+          if (!/isolated runtime service is not available|Oracle Docker workspace is unavailable/i.test(line.content)) return true
+          if (unavailableSeen) return false
+          unavailableSeen = true
+          return true
+        })
+      }
+      tabStates[tab.id] = state
+    }
+    const activeTab = tabs.some((tab) => tab.id === parsed.activeTab) ? parsed.activeTab : tabs[0].id
+    return { tabs, activeTab, tabStates }
   } catch {
     return null
   }
@@ -239,6 +249,7 @@ export default function MultiTerminal() {
   const inputRef = useRef<HTMLInputElement>(null)
   const terminalSocketsRef = useRef(new Map<string, ReturnType<typeof createTerminalWebSocket>>())
   const workspaceSessionIdRef = useRef<string | null>(null)
+  const terminalErrorMessagesRef = useRef(new Set<string>())
 
   const activeState = tabStates[activeTab] ?? initState("shell")
   const activeType = tabs.find((t) => t.id === activeTab)?.type ?? "shell"
@@ -266,6 +277,7 @@ export default function MultiTerminal() {
     const savedSessionId = requestedSessionId ?? workspaceSessionIdRef.current ?? localStorage.getItem("sk-coder-workspace-session-id")
     const socket = createTerminalWebSocket({
       onReady: (sessionId) => {
+        terminalErrorMessagesRef.current.delete(tabId)
         workspaceSessionIdRef.current = sessionId
         localStorage.setItem("sk-coder-workspace-session-id", sessionId)
         addLine(tabId, "success", savedSessionId ? "Connected to shared isolated workspace session." : "Connected to isolated workspace session.")
@@ -282,7 +294,16 @@ export default function MultiTerminal() {
           connectShell(tabId, null)
           return
         }
-        addLine(tabId, "error", message)
+        const readableMessage = /isolated runtime service is not available/i.test(message)
+          ? "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online."
+          : message
+        if (terminalErrorMessagesRef.current.has(`${tabId}:${readableMessage}`)) return
+        terminalErrorMessagesRef.current.add(`${tabId}:${readableMessage}`)
+        setTabStates((previous) => {
+          const state = previous[tabId] ?? initState("shell")
+          if (state.lines.some((line) => line.type === "error" && line.content === readableMessage)) return previous
+          return { ...previous, [tabId]: { ...state, lines: [...state.lines, mkLine("error", readableMessage)] } }
+        })
       },
     }, savedSessionId || undefined)
     terminalSocketsRef.current.set(tabId, socket)
@@ -293,7 +314,7 @@ export default function MultiTerminal() {
     let disposed = false
     void isBackendAvailable().then((available) => {
       if (disposed || !available) {
-        if (!disposed) addLine("shell-1", "info", "Oracle workspace session unavailable. Source-code tabs will use live execution fallbacks.")
+        if (!disposed) addLine("shell-1", "info", "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online.")
         return
       }
       connectShell("shell-1")
@@ -393,7 +414,7 @@ export default function MultiTerminal() {
     setActivePanel("preview")
   }
 
-const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
+const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
 
   function clearTab(tabId: string) {
     updateState(tabId, { lines: [] })
@@ -541,6 +562,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
       const code = node.content || ""
       const ext = filename.split(".").pop()?.toLowerCase() || ""
       updateState(tabId, { running: true })
+      setPreviewResult(null)
       addLine(tabId, "info", `Running ${filename}...`)
 
       if (cmd === "run" && ["html", "htm"].includes(ext)) {
@@ -650,7 +672,13 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
       return { ...prev, [tabId]: { ...cur, lines: [...cur.lines, { id: thinkingId, type: "ai-thinking" as const, content: "Thinking..." }] } }
     })
     const activeFile = getActiveFile()
-    const systemPrompt = buildSystemPrompt({ activeFilePath: activeFile?.path, activeFileContent: autoContext ? activeFile?.content : undefined, fileTree: [] })
+    const workspaceFiles = collectWorkspaceFiles(fileTree).slice(0, 8)
+    const systemPrompt = buildSystemPrompt({
+      activeFilePath: activeFile?.path,
+      activeFileContent: autoContext ? activeFile?.content : undefined,
+      fileTree: workspaceFiles.map((file) => file.path),
+      workspaceFiles,
+    })
     try {
       let reply = ""
       if (usePuter) {
@@ -768,6 +796,20 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
     ai: "Ask a coding question or request help with code",
   }
 
+  const visibleLines = (() => {
+    let unavailableSeen = false
+    return activeState.lines.reduce<TermLine[]>((lines, line) => {
+      if (!/isolated runtime service is not available|Oracle Docker workspace is unavailable/i.test(line.content)) {
+        lines.push(line)
+        return lines
+      }
+      if (unavailableSeen) return lines
+      unavailableSeen = true
+      lines.push({ ...line, type: "info", content: "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online." })
+      return lines
+    }, [])
+  })()
+
   return (
     <div className="multi-terminal">
       <div className="multi-terminal-tabs">
@@ -867,7 +909,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "python-1", "nodejs-1", "ai-1"]
       </div>
 
       <div className="terminal-output" ref={outputRef} onClick={() => inputRef.current?.focus()}>
-        {activeState.lines.map((line) => {
+        {visibleLines.map((line) => {
           if (line.type === "ai-thinking") {
             return (
               <div key={line.id} className="terminal-line info" style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#a78bfa", opacity: 0.8 }}>
