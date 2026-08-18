@@ -90,11 +90,11 @@ router.post("/execute/sessions/:id/command", async (req, res) => {
 })
 
 router.post("/execute", async (req, res) => {
-  const { language, code, sessionId } = req.body as { language?: string; code?: string; sessionId?: string }
+  const { language, code, sessionId, stdin } = req.body as { language?: string; code?: string; sessionId?: string; stdin?: string }
   if (!language || code === undefined) return res.status(400).json({ error: "language and code are required" })
   try {
     const session = sessionId ? { id: sessionId } : await createWorkspaceSession()
-    res.json({ ...(await runCodeInWorkspace(session.id, language, code)), sessionId: session.id, tier: "oracle-workspace" })
+    res.json({ ...(await runCodeInWorkspace(session.id, language, code, typeof stdin === "string" ? stdin : "")), sessionId: session.id, tier: "oracle-workspace" })
   } catch (error) {
     res.status(503).json({ stdout: "", stderr: error instanceof Error ? error.message : "Execution service unavailable.", exitCode: 1, executionTime: 0, error: "runtime-unavailable", tier: "unavailable" })
   }

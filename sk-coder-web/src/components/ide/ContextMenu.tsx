@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { exportToZip, downloadBlob } from "@/lib/importProject"
 import { buildPreview } from "@/lib/previewBuilder"
+import { folderCommand, getFileCapability, getFolderCapability } from "@/lib/projectCapabilities"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
 
@@ -61,7 +62,7 @@ export default function ContextMenu() {
     contextMenu, setContextMenu, deleteNode, setRenameNodeId,
     setNewItem, openTab, fileTree, setActivePanel, addTerminalLine,
     setTerminalInput, refreshPreview, setPreviewContent, clearTerminal,
-    getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen,
+    getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen, setTerminalBridgeCmd,
   } = useIDEStore()
   const ref = useRef<HTMLDivElement>(null)
   const [clipboardState, setClipboardState] = useState<{ path: string; mode: "copy" | "move" } | null>(null)
@@ -106,13 +107,8 @@ export default function ContextMenu() {
 
   const { x, y, node, isFolder } = contextMenu
 
-  const ext = node?.type === "file" ? (node.name.split(".").pop()?.toLowerCase() || "") : ""
-  const isHtml = ["html", "htm"].includes(ext)
-  const isPython = ext === "py"
-  const isJs = ["js", "jsx"].includes(ext)
-  const isTs = ["ts", "tsx"].includes(ext)
-  const isCompilable = ["cpp", "c", "java", "rs", "go", "kt", "rb", "php", "swift"].includes(ext)
-  const isRunnable = isHtml || isPython || isJs || isTs || isCompilable
+  const fileCapability = node?.type === "file" ? getFileCapability(node) : "none"
+  const folderCapability = node?.type === "folder" ? getFolderCapability(node) : {}
 
   async function handleExport() {
     if (!node) return
@@ -234,11 +230,18 @@ export default function ContextMenu() {
     toast.success("Preview updated")
   }
 
-  function handleRunTerminal() {
+  function handleRunFile() {
     if (!node || node.type !== "file") return
     openFileInTerminal(node.path, "shell")
     setContextMenu(null)
-    toast.success(`Opened ${node.name} in SK Shell`)
+    toast.success(`Running ${node.name}`)
+  }
+
+  function handleProjectCommand(command: string, label: string) {
+    if (!node || node.type !== "folder") return
+    setTerminalBridgeCmd({ cmd: folderCommand(node, command), targetType: "shell" })
+    setContextMenu(null)
+    toast.success(`${label} opened in SK Shell`)
   }
 
   function handleOpenInTerminal(termType?: string) {
@@ -306,24 +309,24 @@ export default function ContextMenu() {
         )}
       </div>
 
-      {node?.type === "file" && isRunnable && (
+      {node?.type === "file" && fileCapability !== "none" && (
         <>
           <div className="context-menu-divider" />
           <div style={{ padding: "0.15rem 0.6rem 0.1rem", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Open With
+            Run
           </div>
 
-          {isHtml && (
+          {fileCapability === "preview" && (
             <div className="context-menu-item" onClick={handleRunPreview}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              Preview (Live)
+              Preview Static Site
             </div>
           )}
 
-          {(isPython || isJs || isTs) && (
-            <div className="context-menu-item" onClick={handleRunTerminal}>
+          {fileCapability === "run" && (
+            <div className="context-menu-item" onClick={handleRunFile}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-              {isPython ? "Run in Python Terminal" : "Run in Terminal"}
+              Run File
             </div>
           )}
 
@@ -337,6 +340,22 @@ export default function ContextMenu() {
       {isFolder && (
         <>
           <div className="context-menu-divider" />
+          {(folderCapability.buildCommand || folderCapability.runCommand) && (
+            <>
+              <div style={{ padding: "0.15rem 0.6rem 0.1rem", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                {folderCapability.label}
+              </div>
+              {folderCapability.buildCommand && <div className="context-menu-item" onClick={() => handleProjectCommand(folderCapability.buildCommand!, "Build project")}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2"><path d="M3 3h18v18H3z"/><path d="m8 9 3 3-3 3M13 15h3"/></svg>
+                Build Project
+              </div>}
+              {folderCapability.runCommand && <div className="context-menu-item" onClick={() => handleProjectCommand(folderCapability.runCommand!, "Run project")}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Project
+              </div>}
+              <div className="context-menu-divider" />
+            </>
+          )}
           <div className="context-menu-item" onClick={handleNewFile}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             New File

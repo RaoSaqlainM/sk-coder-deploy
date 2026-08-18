@@ -73,7 +73,7 @@ async function getWandboxCatalog(): Promise<WandboxCompiler[]> {
   return value
 }
 
-async function tryWandbox(language: string, code: string): Promise<ExecResponse | null> {
+async function tryWandbox(language: string, code: string, stdin = ""): Promise<ExecResponse | null> {
   try {
     const config = RUNTIME_CONFIGS[language]
     if (!config || config.wandboxPrefixes.length === 0) return null
@@ -84,7 +84,7 @@ async function tryWandbox(language: string, code: string): Promise<ExecResponse 
     const response = await fetch(WANDBOX_RUN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ compiler: compiler.name, code, filename: config.filename }),
+      body: JSON.stringify({ compiler: compiler.name, code, filename: config.filename, stdin }),
       signal: AbortSignal.timeout(35000),
     })
     if (!response.ok) return null
@@ -96,7 +96,7 @@ async function tryWandbox(language: string, code: string): Promise<ExecResponse 
       exitCode: Number(data.status ?? (stderr ? 1 : 0)),
       executionTime: 0,
       tier: "wandbox-source",
-      capability: "Public fallback ran this source file only. Shell commands, packages, project files, and persistence require Oracle.",
+      capability: stdin ? "Public fallback ran this source file with input supplied before launch. Shell commands, packages, project files, live prompts, and persistence require Oracle." : "Public fallback ran this source file only. Shell commands, packages, project files, and persistence require Oracle.",
     }
   } catch {
     return null
@@ -119,13 +119,13 @@ async function tryPyodide(code: string): Promise<ExecResponse | null> {
   }
 }
 
-async function tryBackend(language: string, code: string): Promise<ExecResponse | null> {
+async function tryBackend(language: string, code: string, stdin = ""): Promise<ExecResponse | null> {
   try {
     const deviceId = localStorage.getItem("sk-device-id") || "anonymous"
     const response = await fetch("/api/execute", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
-      body: JSON.stringify({ language, code }),
+      body: JSON.stringify({ language, code, stdin }),
       signal: AbortSignal.timeout(35000),
     })
     if (!response.ok) return null
@@ -137,7 +137,7 @@ async function tryBackend(language: string, code: string): Promise<ExecResponse 
       exitCode: data.exitCode ?? 1,
       executionTime: data.executionTime ?? 0,
       tier: "oracle-workspace" as const,
-      capability: "Oracle isolated workspace executed this code. SK Shell and project commands use the same session runtime.",
+      capability: stdin ? "Oracle isolated workspace executed this code with input supplied before launch. Use SK Shell for live prompts, commands, packages, and project work." : "Oracle isolated workspace executed this code. SK Shell and project commands use the same session runtime.",
     }
     return isInfrastructureFailure(result.stderr) ? null : result
   } catch {
@@ -145,13 +145,14 @@ async function tryBackend(language: string, code: string): Promise<ExecResponse 
   }
 }
 
-export async function execute(language: string, code: string): Promise<ExecResponse> {
+export async function execute(language: string, code: string, options?: { stdin?: string }): Promise<ExecResponse> {
   const normalized = language.toLowerCase()
   const startedAt = Date.now()
   const config = RUNTIME_CONFIGS[normalized]
-  const backend = config ? await tryBackend(config.backend, code) : null
+  const stdin = options?.stdin ?? ""
+  const backend = config ? await tryBackend(config.backend, code, stdin) : null
   if (backend) return backend
-  const wandbox = await tryWandbox(normalized, code)
+  const wandbox = await tryWandbox(normalized, code, stdin)
   if (wandbox) return wandbox
   if (["python", "python3", "py"].includes(normalized)) {
     const pyodide = await tryPyodide(code)
@@ -164,6 +165,6 @@ export async function execute(language: string, code: string): Promise<ExecRespo
     exitCode: 1,
     executionTime: Date.now() - startedAt,
     tier: "unavailable",
-    capability: "No fallback can provide a shell session, dependency installation, multi-file project, or persistent workspace without Oracle.",
+      capability: stdin ? "No available source runner accepted this input-dependent file. SK Shell on Oracle provides live prompts, projects, packages, and persistence." : "No fallback can provide a shell session, dependency installation, multi-file project, or persistent workspace without Oracle.",
   }
 }

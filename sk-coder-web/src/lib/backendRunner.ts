@@ -149,6 +149,8 @@ export function createTerminalWebSocket(handlers: TerminalSocketHandlers, sessio
   ws.onerror = () => handlers.onError("WebSocket connection failed")
   return {
     sendCommand: (command: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "command", command })) },
+    sendInput: (data: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "input", data })) },
+    interrupt: () => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "interrupt" })) },
     close: () => ws.close(),
   }
 }

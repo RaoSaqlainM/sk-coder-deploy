@@ -54,3 +54,12 @@
 - [x] Improve workspace-aware SK-AI context so approved actions can inspect selected files and workspace paths, propose changes, and route correctly without pretending to access unavailable runtime data.
 - [x] Add language-aware editor diagnostics and a bottom error/status bar for supported syntax and execution errors.
 - [x] Audit every configured language family and expose only real execution capabilities or honest unavailable states.
+- [x] Add file- and folder-level context actions that expose only real Run File, Build Project, Preview, or Open in SK Shell actions for detected supported content.
+- [x] Add runtime-aware project detection and truthful capability disclosures for executable files, static sites, CLI programs, and server projects.
+- [x] Improve SK Shell mobile interaction with touch scrolling, visible command history navigation, and a keyboard accessory row for essential terminal keys.
+- [x] Design and implement an honest interactive-program input path for Oracle runtime sessions, including stdin prompts, send-input controls, cancellation, and exit handling.
+- [x] Refine editor diagnostic styling so error and warning markers are clear without an unattractive transparent line overlay.
+- [x] Rename the terminal AI surface to AI Terminal and expand approval-gated workspace operations with scoped reads, diffs, commands, results, and view routing.
+- [x] Update the public guide with truthful runtime coverage, project limits, retention choices, browser-mirror behavior, AI-provider setup, GitHub permissions, and APK-editor scope.
+- [x] Research and document practical Oracle runtime support, project preview, interactive stdin, mobile terminal interaction, GitHub access, and APK build limitations.
+- [x] Test expanded file actions, mobile terminal behavior, diagnostics, project routing, and fallback disclosures before release.

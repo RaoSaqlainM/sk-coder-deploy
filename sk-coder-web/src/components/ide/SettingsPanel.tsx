@@ -336,7 +336,7 @@ export default function SettingsPanel() {
                 <div className="settings-section">
                   <div className="settings-section-title">Personal Access Token</div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: "0.75rem", lineHeight: 1.6 }}>
-                    Connect your GitHub account to push code, manage repositories, and open Codespaces. Token needs <strong style={{ color: "var(--orange)" }}>repo</strong> and <strong style={{ color: "var(--orange)" }}>codespace</strong> scopes.
+                    Use a fine-grained token when possible. Limit it to selected repositories and grant Contents read or write only as needed. Add Codespaces read or write only when you manage Codespaces.
                   </div>
                   {settings.github.username && (
                     <div className="settings-key-status valid" style={{ marginBottom: "0.75rem" }}>
@@ -350,7 +350,7 @@ export default function SettingsPanel() {
                         type={showToken ? "text" : "password"}
                         value={tokenInput}
                         onChange={(e) => setTokenInput(e.target.value)}
-                        placeholder="ghp_..."
+                        placeholder="github_pat_... or ghp_..."
                         style={{ fontFamily: "var(--font-code)", fontSize: 11, flex: 1 }}
                       />
                       <button className="btn btn-ghost" style={{ padding: "0.25rem 0.5rem", flexShrink: 0 }} onClick={() => setShowToken(!showToken)}>
@@ -360,7 +360,7 @@ export default function SettingsPanel() {
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
                     <button className="btn btn-primary" onClick={handleValidateToken}>Connect GitHub</button>
-                    <a href="https://github.com/settings/tokens/new?scopes=codespace,repo&description=SK-Coder" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+                    <a href="https://github.com/settings/personal-access-tokens/new?name=SK-Coder&description=Selected+repository+access" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
                       Create Token →
                     </a>
                   </div>
@@ -412,12 +412,13 @@ export default function SettingsPanel() {
                   <div className="settings-section-title">User Guide</div>
                   {[
                     { icon: "📁", title: "Files and Editor", text: "Open Files from the bottom navigation. Selecting a file opens it in the Editor automatically. Use the three-dot menu for file actions and the Import button for files or a ZIP project." },
-                    { icon: "▶️", title: "Run and Results", text: "Press the green Run button for the active file. HTML opens in Preview. Code results open in Console automatically. Use Problems for errors, Files Produced for generated artifacts, and Runtime to see where the result came from." },
+                    { icon: "▶️", title: "Run and Results", text: "Run actions appear only for supported source files or detected projects. HTML opens a static preview. Code results open in Console; Runtime shows Oracle, browser preview, source fallback, or unavailable status." },
                     { icon: "📱", title: "Preview Sizes", text: "In Result & Preview, choose Mobile, Tablet, or Desktop. The selected frame is only a visual test size; it does not change your source files." },
-                    { icon: "🖥️", title: "Terminals", text: "SK Shell is the full project terminal. Use it for folders, packages, build tools, and commands. Python Run, Node Run, and Java Run are quick source runners, not full command terminals." },
+                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the only full project terminal. Use it for folders, Node.js, packages, build tools, commands, and live program input when Oracle Workspace is online. Swipe output to scroll; the mobile key row provides terminal keys." },
                     { icon: "↔️", title: "More SK Shell Tabs", text: "Add another SK Shell when you need separate working folders or command history. Each full-shell tab keeps its own terminal state while working with the same workspace files." },
-                    { icon: "💬", title: "SK-AI", text: "Ask SK-AI to explain, plan, write, run, or preview code. It proposes file changes and commands first. Nothing is changed or run until you approve each proposal." },
-                    { icon: "🐙", title: "GitHub", text: "Connect your GitHub token to push projects, browse repos, and open Codespaces directly." },
+                    { icon: "💬", title: "SK-AI and AI Terminal", text: "The assistant receives a bounded active-file-first workspace context. It proposes scoped edits, commands, and previews first. Nothing is changed, run, deleted, or opened until you approve each proposal." },
+                    { icon: "🕒", title: "Workspace retention", text: "Oracle workspaces can be kept for three days or scheduled for deletion in four hours. Browser source mirrors are separate and should be exported before clearing site data." },
+                    { icon: "🐙", title: "GitHub", text: "Use a restricted fine-grained token for selected repositories. Codespaces permissions are only needed when you manage Codespaces." },
                   ].map((item) => (
                     <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
                       <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span>
@@ -432,9 +433,9 @@ export default function SettingsPanel() {
                 <div className="settings-section">
                   <div className="settings-section-title">Privacy Policy</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                    <p style={{ marginBottom: "0.6rem" }}>SK Coder runs entirely in your browser. <strong style={{ color: "var(--text-primary)" }}>We do not collect, store, or transmit your code or files.</strong> Everything stays on your device.</p>
-                    <p style={{ marginBottom: "0.6rem" }}>Your API keys and GitHub tokens are stored only in your browser's local storage. They are never sent to our servers.</p>
-                    <p>When you use Puter AI or external AI providers, your messages are sent directly to those services under their respective privacy policies. SK Coder acts only as a client — it does not log or store your conversations.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>SK Coder keeps a browser source mirror for editing and export. Browser site-data clearing can remove that mirror, so export important projects as ZIP files.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>When you choose Oracle Workspace, source fallback, GitHub, or an AI provider, the selected files or messages needed for that requested action are sent to that selected service. Runtime identifies the execution location after each run.</p>
+                    <p>Your API keys and GitHub tokens are stored by the browser for this application. Treat tokens as passwords, use an expiry, and give them the minimum permissions needed.</p>
                   </div>
                 </div>
 

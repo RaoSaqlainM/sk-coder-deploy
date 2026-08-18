@@ -24,12 +24,18 @@ This record captures the final verification performed against the repaired repos
 | Runtime capability API | `/api/execute/runtimes` advertises 12 installed language families and accurately reports Docker availability. | Live endpoint verified; Docker reported unavailable in this sandbox. |
 | Connected development proxy | A Vite `/api` proxy forwarded health and runtime-registry requests to the API server. | Live request verified. |
 | Unified result metadata | Active-file execution sends tier, capability, and elapsed-time metadata to the Result & Preview center. | Frontend typecheck and release build passed. |
+| Capability-aware file actions | The C++ file action menu exposed Run File while retaining normal editor, terminal, file-management, download, and delete actions. | Live browser verified. |
+| Pre-run standard input | The Console offered an Input before run card with a multiline field and re-run control for supported source execution. | Live browser verified. |
+| Responsive terminal controls | At a 390 × 844 viewport, SK Shell exposed Tab, arrow, Escape, and Ctrl+C controls above the command field. | Live browser verified. |
+| Terminal labels | Legacy persisted terminal state is normalized so the visible default tabs are SK Shell and AI Terminal. | Live browser and typecheck verified. |
+| Runtime disclosure | A C++ execution used the live `wandbox-source` fallback and stated that package, shell, project-file, and persistence behavior requires Oracle. | Live browser verified. |
+| SK-AI availability state | The AI panel displayed current-file context and disabled sending until an API key or the optional provider is configured. | Live browser verified. |
 
 ## Verification details
 
 The frontend production build completed with 1,755 transformed modules. The build emitted two non-blocking optimization warnings: a JSZip import cannot be split because it is also statically imported elsewhere, and the resulting main JavaScript chunk is above Vite's 500 kB advisory threshold. These warnings do not prevent deployment or execution, but they identify a future optimization opportunity to code-split non-critical IDE panels.
 
-The connected desktop browser did not respond during the final non-destructive visual smoke check. The exposed frontend endpoint was subsequently verified to return HTTP 200 by direct request. The prior browser checks for Preview and APK navigation remain valid.
+The connected browser completed a final responsive visual smoke check. At a 390 × 844 viewport, the terminal keyboard row and all seven bottom-navigation destinations remained reachable. The source-file menu exposed only the applicable run affordance; C++ execution opened the shared Console, exposed the pre-run input control, and the Runtime tab truthfully disclosed the active public fallback. The AI workspace remained visible with active-file context and an explicit configuration-required state rather than a fabricated response.
 
 ## Large-project lifecycle behavior
 
@@ -55,4 +61,4 @@ The Docker-based session backend cannot be fully end-to-end tested in this sandb
 
 ## Delivery conclusion
 
-The repository is release-buildable, has verified public execution fallback behavior for Node.js, Python, and Java, and contains the Oracle deployment artifacts and host runbook required for deployment. The durable lifecycle registry, capacity admission controls, runtime disclosure, and unified result metadata are implemented. The remaining runtime checks are deliberately limited to the Oracle host because they require Docker container execution and persistent storage unavailable in the current sandbox.
+The repository is release-buildable, has verified public execution fallback behavior for Node.js, Python, Java, and C++, and contains the Oracle deployment artifacts and host runbook required for deployment. The durable lifecycle registry, capacity admission controls, capability-aware actions, mobile terminal controls, pre-run standard input, runtime disclosure, unified result metadata, and approval-gated AI workspace behavior are implemented. The remaining runtime checks are deliberately limited to the Oracle host because they require Docker container execution and persistent storage unavailable in the current sandbox.

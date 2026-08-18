@@ -20,9 +20,11 @@ export function setupTerminalWs(server: Server) {
       ws.send(JSON.stringify({ type: "ready", cwd: "/", sessionId: session.id }))
       ws.on("message", (raw) => {
         try {
-          const message = JSON.parse(raw.toString()) as { type?: string; command?: string }
+          const message = JSON.parse(raw.toString()) as { type?: string; command?: string; data?: string }
           if (message.type === "kill") terminateInteractiveTerminal(terminal)
           if (message.type === "command" && message.command) terminal.stdin.write(`${message.command}\n`)
+          if (message.type === "input" && typeof message.data === "string" && message.data.length <= 65536) terminal.stdin.write(message.data)
+          if (message.type === "interrupt") terminal.stdin.write("\u0003")
         } catch {}
       })
       ws.on("close", () => terminateInteractiveTerminal(terminal))

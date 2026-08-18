@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { buildPreview } from "@/lib/previewBuilder"
+import { execute } from "@/lib/executorChain"
 import type { PreviewViewport } from "@/types/ide"
 
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
@@ -13,6 +14,8 @@ export default function PreviewPane() {
   const [showExternal, setShowExternal] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [resultMode, setResultMode] = useState<ResultMode>("preview")
+  const [programInput, setProgramInput] = useState("")
+  const [runningWithInput, setRunningWithInput] = useState(false)
 
   const viewport = settings.preview.viewport
   const activeFile = getActiveFile()
@@ -106,6 +109,28 @@ export default function PreviewPane() {
     { id: "runtime", label: "Runtime" },
   ]
 
+  async function runWithInput() {
+    if (!activeFile || runningWithInput) return
+    const extension = activeFile.path.split(".").pop()?.toLowerCase() || activeFile.language || ""
+    if (["html", "htm", "css", "md", "json"].includes(extension)) return
+    setRunningWithInput(true)
+    setPreviewResult(null)
+    setResultMode("console")
+    try {
+      const response = await execute(extension, activeFile.content || "", { stdin: programInput })
+      setPreviewResult({
+        stdout: response.stdout,
+        stderr: response.stderr,
+        exitCode: response.exitCode,
+        tier: response.tier,
+        capability: response.capability,
+        executionTime: response.executionTime,
+      })
+    } finally {
+      setRunningWithInput(false)
+    }
+  }
+
   return (
     <div className="preview-panel">
       <div className="preview-toolbar">
@@ -176,6 +201,18 @@ export default function PreviewPane() {
       <div className="preview-content-area">
         {resultMode === "console" ? (
           <div style={{ width: "100%", height: "100%", background: "#0d1117", fontFamily: "'JetBrains Mono','Fira Code',monospace", fontSize: 13, padding: "1rem", overflowY: "auto", boxSizing: "border-box" }}>
+            {activeFile && !["html", "htm", "css", "md", "json"].includes(activeFile.path.split(".").pop()?.toLowerCase() || "") && (
+              <div className="program-input-card">
+                <div>
+                  <strong>Input before run</strong>
+                  <span>Use one line per prompt. For live prompts after launch, use SK Shell on Oracle.</span>
+                </div>
+                <textarea value={programInput} onChange={(event) => setProgramInput(event.target.value)} placeholder={"Example:\n10\n20"} spellCheck={false} />
+                <button className="btn btn-secondary" onClick={() => void runWithInput()} disabled={runningWithInput}>
+                  {runningWithInput ? "Running…" : "Run with input"}
+                </button>
+              </div>
+            )}
             {result?.stdout && (
               <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#e6edf3" }}>{result.stdout}</pre>
             )}

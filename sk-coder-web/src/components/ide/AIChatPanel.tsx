@@ -115,11 +115,14 @@ export default function AIChatPanel() {
         const name = action.path.slice(separator + 1)
         addFile(parent, name, "file", action.content)
       }
+      setActivePanel("editor")
     } else if (action.type === "create_folder") {
       const separator = action.path.lastIndexOf("/")
       addFile(separator <= 0 ? "/" : action.path.slice(0, separator), action.path.slice(separator + 1), "folder")
+      setActivePanel("files")
     } else if (action.type === "delete") {
       deleteNode(action.path)
+      setActivePanel("files")
     } else if (action.type === "run") {
       setActivePanel("terminal")
       setTerminalBridgeCmd({ cmd: action.command, targetType: "shell" })
@@ -130,6 +133,7 @@ export default function AIChatPanel() {
       }
       setActivePanel("preview")
     }
+    addAIChatMessage({ role: "assistant", content: `Approved: ${actionLabel(action)}` })
     removeProposal(action.id)
   }
 
@@ -261,7 +265,17 @@ export default function AIChatPanel() {
           {proposals.map((proposal) => (
             <div key={proposal.id} style={{ padding: "0.75rem", borderRadius: 10, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.28)", display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 700 }}>{actionLabel(proposal)}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>This action has not been applied.</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>This action has not been applied. Approval applies only to this proposal.</div>
+              {proposal.type === "write" && (
+                <div style={{ display: "grid", gap: 5 }}>
+                  <div style={{ color: "var(--text-muted)", fontSize: 10 }}>File: {proposal.path}</div>
+                  <pre style={{ margin: 0, maxHeight: 150, overflow: "auto", padding: "0.55rem", borderRadius: 6, background: "rgba(0,0,0,0.24)", color: "#e2c08d", fontSize: 10, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{proposal.content.slice(0, 2400)}{proposal.content.length > 2400 ? "\n… preview shortened" : ""}</pre>
+                </div>
+              )}
+              {proposal.type === "create_folder" && <div style={{ color: "var(--text-muted)", fontSize: 10 }}>Folder: {proposal.path}</div>}
+              {proposal.type === "delete" && <div style={{ color: "#f97583", fontSize: 10 }}>Delete target: {proposal.path}</div>}
+              {proposal.type === "run" && <pre style={{ margin: 0, padding: "0.55rem", borderRadius: 6, background: "rgba(0,0,0,0.24)", color: "#e2c08d", fontSize: 10, whiteSpace: "pre-wrap" }}>{proposal.command}</pre>}
+              {proposal.type === "preview" && <div style={{ color: "var(--text-muted)", fontSize: 10 }}>Preview target: {proposal.path || "active workspace preview"}</div>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-primary" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => approveProposal(proposal)}>Approve</button>
                 <button className="btn btn-ghost" style={{ fontSize: 11, padding: "0.42rem 0.7rem" }} onClick={() => removeProposal(proposal.id)}>Decline</button>

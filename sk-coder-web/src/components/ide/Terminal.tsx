@@ -56,7 +56,7 @@ function initState(type: TermType): TabState {
     python: "Python Run — source execution; project commands use SK Shell",
     nodejs: "Node.js Run — source execution; project commands use SK Shell",
     java: "Java Run — source execution; project commands use SK Shell",
-    ai: "SK AI — Ask questions or get code help",
+    ai: "AI Terminal — Ask about the current workspace or propose an approved action",
   }
   return {
     lines: [mkLine("info", welcomes[type])],
@@ -126,7 +126,7 @@ const TERM_LABELS: Record<TermType, string> = {
   python: "Python Run",
   nodejs: "Node Run",
   java: "Java Run",
-  ai: "AI",
+  ai: "AI Terminal",
 }
 
 const WORKSPACE_COMMANDS = new Set([
@@ -140,7 +140,7 @@ function isWorkspaceCommand(input: string) {
 
 const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
   { type: "shell", label: "SK Shell", desc: "Real Oracle workspace terminal for Node.js, packages, builds, and commands" },
-  { type: "ai", label: "AI", desc: "Ask code questions · get help" },
+  { type: "ai", label: "AI Terminal", desc: "Workspace-aware help with explicit approvals" },
 ]
 
 function TermIcon({ type }: { type: TermType }) {
@@ -192,7 +192,7 @@ async function ensurePuterForTerm(): Promise<boolean> {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: "shell-1", type: "shell", label: "SK Shell" },
-  { id: "ai-1", type: "ai", label: "AI" },
+  { id: "ai-1", type: "ai", label: "AI Terminal" },
 ]
 
 const DEFAULT_STATES: Record<string, TabState> = {
@@ -207,9 +207,14 @@ function loadPersistedTerminalState() {
     const parsed = JSON.parse(raw) as { tabs?: TabDef[]; activeTab?: string; tabStates?: Record<string, TabState> }
     if (!parsed.tabs || !parsed.tabStates) return null
     const allowedTypes = new Set<TermType>(["shell", "ai"])
-    const tabs = parsed.tabs.filter((tab) => allowedTypes.has(tab.type))
+    const tabs = parsed.tabs
+      .filter((tab) => allowedTypes.has(tab.type))
+      .map((tab) => ({
+        ...tab,
+        label: tab.type === "ai" ? "AI Terminal" : "SK Shell",
+      }))
     if (!tabs.some((tab) => tab.type === "shell")) tabs.unshift({ id: "shell-1", type: "shell", label: "SK Shell" })
-    if (!tabs.some((tab) => tab.type === "ai")) tabs.push({ id: "ai-1", type: "ai", label: "AI" })
+    if (!tabs.some((tab) => tab.type === "ai")) tabs.push({ id: "ai-1", type: "ai", label: "AI Terminal" })
     const tabStates: Record<string, TabState> = {}
     for (const tab of tabs) {
       const state = { ...(parsed.tabStates[tab.id] ?? initState(tab.type)), running: false }
@@ -763,7 +768,12 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
       updateState(tabId, { histIdx: next, input: next === -1 ? "" : state?.history?.[next] || "" })
       return
     }
-    if (e.key === "c" && e.ctrlKey) { addLine(tabId, "info", "^C"); updateState(tabId, { input: "", running: false }) }
+    if (e.key === "c" && e.ctrlKey) {
+      e.preventDefault()
+      terminalSocketsRef.current.get(tabId)?.interrupt()
+      addLine(tabId, "info", "^C")
+      updateState(tabId, { input: "", running: false })
+    }
     if (e.key === "l" && e.ctrlKey) { e.preventDefault(); updateState(tabId, { lines: [] }) }
     if (e.key === "Tab") {
       e.preventDefault()
@@ -780,6 +790,40 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     }
   }
 
+  function sendAccessory(tabId: string, key: "tab" | "up" | "down" | "escape" | "ctrl-c" | "left" | "right") {
+    const socket = terminalSocketsRef.current.get(tabId)
+    const sequences: Record<typeof key, string> = {
+      tab: "\t",
+      up: "\u001b[A",
+      down: "\u001b[B",
+      escape: "\u001b",
+      "ctrl-c": "\u0003",
+      left: "\u001b[D",
+      right: "\u001b[C",
+    }
+    if (key === "ctrl-c") {
+      socket?.interrupt()
+      addLine(tabId, "info", "^C")
+      updateState(tabId, { input: "", running: false })
+      return
+    }
+    if (socket) {
+      socket.sendInput(sequences[key])
+      inputRef.current?.focus()
+      return
+    }
+    const state = tabStates[tabId]
+    if (key === "up") {
+      const next = Math.min((state?.histIdx ?? -1) + 1, (state?.history?.length ?? 0) - 1)
+      updateState(tabId, { histIdx: next, input: state?.history?.[next] || "" })
+    }
+    if (key === "down") {
+      const next = Math.max((state?.histIdx ?? -1) - 1, -1)
+      updateState(tabId, { histIdx: next, input: next === -1 ? "" : state?.history?.[next] || "" })
+    }
+    if (key === "tab") inputRef.current?.focus()
+  }
+
   const promptLabels: Record<TermType, string> = {
     shell: `${activeState.cwd || "/"}$`,
     python: ">>>",
@@ -789,7 +833,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
   }
 
   const placeholders: Record<TermType, string> = {
-    shell: "ls · cd <dir> · run <file> · mkdir · help  (↑↓ history, Tab complete)",
+    shell: "Command or live program input · ↑↓ history · Tab complete · Ctrl+C interrupt",
     python: "print('hello')  • import math  • source only",
     nodejs: "console.log('hello')  • require('fs')  • source only",
     java: "class Main { public static void main(String[] args) { System.out.println(\"hello\"); } }",
@@ -951,6 +995,18 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         )}
       </div>
 
+      {activeType === "shell" && (
+        <div className="terminal-keyboard-row" aria-label="Terminal controls">
+          <button onClick={() => sendAccessory(activeTab, "tab")}>Tab</button>
+          <button onClick={() => sendAccessory(activeTab, "up")}>↑</button>
+          <button onClick={() => sendAccessory(activeTab, "down")}>↓</button>
+          <button onClick={() => sendAccessory(activeTab, "left")}>←</button>
+          <button onClick={() => sendAccessory(activeTab, "right")}>→</button>
+          <button onClick={() => sendAccessory(activeTab, "escape")}>Esc</button>
+          <button onClick={() => sendAccessory(activeTab, "ctrl-c")}>Ctrl+C</button>
+        </div>
+      )}
+
       <div className="terminal-input-row">
         <span className="terminal-prompt-label" style={{ color: TERM_COLORS[activeType], fontSize: 11, whiteSpace: "nowrap", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>
           {promptLabels[activeType]}
@@ -973,7 +1029,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
           onClick={() => handleSubmit(activeTab)}
           disabled={activeState.running || !activeState.input.trim()}
         >
-          Run
+          {activeType === "ai" ? "Ask" : "Send"}
         </button>
       </div>
 

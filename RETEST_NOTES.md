@@ -26,7 +26,13 @@
 | Editor transition | Selecting Editor from SK Shell returned to the active C++ file in the separate full-width editor surface. | Passed |
 | C++ diagnostics | A controlled unclosed-brace C++ edit produced line-specific Problems entries for both unmatched braces; restoring valid content removed the temporary diagnostics. | Passed |
 | Diagnostic test cleanup | The browser workspace was reset to the original valid `probe.cpp` content after the controlled syntax test. | Passed |
+| Source-file capability menu | The mobile Files view exposed Run File for `probe.cpp`, alongside normal file actions, without presenting a static-preview action. | Passed |
+| Console input-before-run card | The C++ Console opened with a multiline input field and Run with input control. Input `7` and `5` was accepted and triggered a fresh execution. | Passed |
+| Honest Runtime tab | The post-run Runtime tab stated `wandbox-source` and explicitly limited the fallback to source-file execution. | Passed |
+| Mobile SK Shell keyboard row | At 390 × 844, Tab, up, down, left, right, Escape, and Ctrl+C appeared above the terminal input. | Passed |
+| Terminal naming migration | Clearing a legacy saved terminal state and reloading rendered default tabs as SK Shell and AI Terminal. | Passed |
+| Mobile AI workspace entry | The AI screen stayed reachable from the seven-item navigation, showed `probe.cpp in context`, and required provider configuration before enabling a send action. | Passed |
 
 ## Immediate repairs
 
-The execution chain must use language-specific compiler selection for C and C++. A non-HTML run must automatically open Console, not Preview. Desktop panel layering must keep the active Result & Preview controls clickable. The user guide must make the distinction between a full SK Shell and source-run tabs clear without exposing infrastructure details.
+The execution chain now uses language-specific compiler selection for C and C++. A non-HTML run opens Console, desktop panel layering keeps Result & Preview controls clickable, and the user guide distinguishes the full SK Shell from source execution without exposing internal infrastructure. Oracle-host-only Docker session and persistent-shell validation remains required after deployment.

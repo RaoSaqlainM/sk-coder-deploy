@@ -13,7 +13,7 @@ const sessions = new Map<string, WorkspaceSession>()
 let dockerReady: boolean | null = null
 let cleanupStarted = false
 
-function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS): Promise<CommandResult> {
+function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS, stdin = ""): Promise<CommandResult> {
   return new Promise((resolveResult) => {
     const startedAt = Date.now()
     const proc = spawn(command, args, { env: { ...process.env, NO_COLOR: "1" } })
@@ -27,6 +27,7 @@ function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS): Pro
     }, timeout)
     proc.stdout.on("data", (value: Buffer) => { stdout += value.toString() })
     proc.stderr.on("data", (value: Buffer) => { stderr += value.toString() })
+    proc.stdin.end(stdin)
     proc.once("error", (error) => {
       clearTimeout(timer)
       resolveResult({ stdout: "", stderr: error.message, exitCode: 127, executionTime: Date.now() - startedAt })
@@ -142,17 +143,17 @@ export async function syncWorkspaceFiles(id: string, files: WorkspaceFile[]) {
   await incrementWorkspaceRevision(id)
 }
 
-export async function runWorkspaceCommand(id: string, command: string, cwd = "/") {
+export async function runWorkspaceCommand(id: string, command: string, cwd = "/", stdin = "") {
   const session = await getWorkspaceSession(id)
   const requested = safeRelativePath(cwd)
   const workspaceCwd = requested === "." ? "/workspace" : `/workspace/${requested.replaceAll("\\", "/")}`
-  const result = await run("docker", ["exec", "-i", "-e", "HOME=/workspace", "-w", workspaceCwd, session.containerName, "bash", "-lc", command])
+  const result = await run("docker", ["exec", "-i", "-e", "HOME=/workspace", "-w", workspaceCwd, session.containerName, "bash", "-lc", command], COMMAND_TIMEOUT_MS, stdin)
   await checkSize(session.workspacePath, SESSION_MAX_BYTES, "Workspace storage limit reached.")
   await incrementWorkspaceRevision(id)
   return result
 }
 
-export async function runCodeInWorkspace(id: string, language: string, code: string) {
+export async function runCodeInWorkspace(id: string, language: string, code: string, stdin = "") {
   const session = await getWorkspaceSession(id)
   const runPath = `.skcoder-runs/${randomUUID()}`
   const hostRunPath = resolve(session.workspacePath, runPath)
@@ -167,10 +168,11 @@ export async function runCodeInWorkspace(id: string, language: string, code: str
   }
   const selected = config[language.toLowerCase()]
   if (!selected) throw new Error(`Unsupported runtime: ${language}`)
+  if (stdin.length > 65536) throw new Error("Program input exceeds the 64 KB source-run limit.")
   await mkdir(hostRunPath, { recursive: true, mode: 0o777 })
   await writeFile(join(hostRunPath, selected.filename), code, "utf8")
   try {
-    return await runWorkspaceCommand(id, selected.command, runPath)
+    return await runWorkspaceCommand(id, selected.command, runPath, stdin)
   } finally {
     await rm(hostRunPath, { recursive: true, force: true })
   }
