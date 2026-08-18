@@ -63,3 +63,20 @@
 - [x] Update the public guide with truthful runtime coverage, project limits, retention choices, browser-mirror behavior, AI-provider setup, GitHub permissions, and APK-editor scope.
 - [x] Research and document practical Oracle runtime support, project preview, interactive stdin, mobile terminal interaction, GitHub access, and APK build limitations.
 - [x] Test expanded file actions, mobile terminal behavior, diagnostics, project routing, and fallback disclosures before release.
+- [x] Reframe public runtime and fallback wording so users see capability-focused messages without internal hosting or provider implementation details.
+- [ ] Redesign the terminal input and history experience for practical multi-command workflows on desktop and mobile, with an accessible symbol accessory bar.
+- [ ] Define interactive-program support for calculators, console applications, and graphical or game projects, clearly separating pre-run input, live PTY sessions, and unsupported GUI output.
+- [x] Simplify source-file and project actions so the UI offers only contextually useful choices and routes users into the appropriate workspace experience.
+- [x] Add public Help, supported-language, supported-project, retention, privacy, and terms pages that are suitable for a public product without exposing backend architecture.
+- [x] Audit and improve editor diagnostics, result behavior, responsive sizing, current-file execution selection, and AI workspace awareness against professional IDE expectations.
+- [ ] Create an advertising-readiness and production acceptance checklist covering original content, policy pages, user experience, runtime honesty, security, and deployment verification.
+- [x] Keep SK Coder AI on user-provided compatible API keys with an optional free provider, while making its workspace context, approval flow, and senior-developer guidance genuinely useful without exposing internal product details.
+- [ ] Restrict advertising placements to public help, policy, and marketing surfaces, never the coding workspace, terminal, editor, preview controls, or bottom IDE navigation.
+- [x] Preserve folder opening through SK Shell or Codespaces and improve real terminal folder navigation, independent working directories, command history, and available command execution.
+- [ ] Create public-page localization with English as the default, a visible manual language selector, safe region suggestion, and a professional public-site footer that opens page links in a new tab.
+- [x] Define and implement usable result interactions for console calculators, menu programs, browser games, generated artifacts, and unsupported desktop graphical applications.
+- [x] Research professional alternatives for interactive console input, responsive browser preview, remote desktop GUI, emulator-style experiences, desktop keyboard controls, and mobile coding keyboards without destabilizing the existing IDE.
+- [x] Select the safest phased result-experience model and document why browser preview, live terminal, remote GUI, and native emulation cannot be treated as the same feature.
+- [x] Audit current SK Coder result, preview, terminal, diagnostics, artifact, and runtime behavior against a universal matrix of source, web, service, document, media, archive, native GUI, and mobile-app workloads.
+- [x] Define user-visible verification and interaction paths for every supported workload category so users can tell whether a run succeeded, failed, produced files, opened a preview, or requires an external environment.
+- [x] Plan safe incremental upgrades that improve broad result coverage now and reserve remote desktop, native emulation, and real-device testing for separately secured and resourced future capabilities.

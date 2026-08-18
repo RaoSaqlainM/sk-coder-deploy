@@ -412,12 +412,12 @@ export default function SettingsPanel() {
                   <div className="settings-section-title">User Guide</div>
                   {[
                     { icon: "📁", title: "Files and Editor", text: "Open Files from the bottom navigation. Selecting a file opens it in the Editor automatically. Use the three-dot menu for file actions and the Import button for files or a ZIP project." },
-                    { icon: "▶️", title: "Run and Results", text: "Run actions appear only for supported source files or detected projects. HTML opens a static preview. Code results open in Console; Runtime shows Oracle, browser preview, source fallback, or unavailable status." },
+                    { icon: "▶️", title: "Run and Results", text: "Run actions appear only for supported source files or detected projects. HTML opens Preview. Code results show the current file, output, problems, files produced, and run details together." },
                     { icon: "📱", title: "Preview Sizes", text: "In Result & Preview, choose Mobile, Tablet, or Desktop. The selected frame is only a visual test size; it does not change your source files." },
-                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the only full project terminal. Use it for folders, Node.js, packages, build tools, commands, and live program input when Oracle Workspace is online. Swipe output to scroll; the mobile key row provides terminal keys." },
+                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the full project terminal. Use it for folders, Node.js, packages, build tools, commands, and live program input when a live workspace is available. Swipe output to scroll; the mobile key row provides terminal keys." },
                     { icon: "↔️", title: "More SK Shell Tabs", text: "Add another SK Shell when you need separate working folders or command history. Each full-shell tab keeps its own terminal state while working with the same workspace files." },
                     { icon: "💬", title: "SK-AI and AI Terminal", text: "The assistant receives a bounded active-file-first workspace context. It proposes scoped edits, commands, and previews first. Nothing is changed, run, deleted, or opened until you approve each proposal." },
-                    { icon: "🕒", title: "Workspace retention", text: "Oracle workspaces can be kept for three days or scheduled for deletion in four hours. Browser source mirrors are separate and should be exported before clearing site data." },
+                    { icon: "🕒", title: "Workspace retention", text: "Live workspaces can be kept for three days or scheduled for deletion in four hours. Browser source mirrors are separate and should be exported before clearing site data." },
                     { icon: "🐙", title: "GitHub", text: "Use a restricted fine-grained token for selected repositories. Codespaces permissions are only needed when you manage Codespaces." },
                   ].map((item) => (
                     <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
@@ -434,7 +434,7 @@ export default function SettingsPanel() {
                   <div className="settings-section-title">Privacy Policy</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
                     <p style={{ marginBottom: "0.6rem" }}>SK Coder keeps a browser source mirror for editing and export. Browser site-data clearing can remove that mirror, so export important projects as ZIP files.</p>
-                    <p style={{ marginBottom: "0.6rem" }}>When you choose Oracle Workspace, source fallback, GitHub, or an AI provider, the selected files or messages needed for that requested action are sent to that selected service. Runtime identifies the execution location after each run.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>When you use a live workspace, GitHub, or an AI provider, only the selected files or messages needed for that requested action are sent to that service. Run details explain the available capability after each action.</p>
                     <p>Your API keys and GitHub tokens are stored by the browser for this application. Treat tokens as passwords, use an expiry, and give them the minimum permissions needed.</p>
                   </div>
                 </div>

@@ -30,12 +30,20 @@ This record captures the final verification performed against the repaired repos
 | Terminal labels | Legacy persisted terminal state is normalized so the visible default tabs are SK Shell and AI Terminal. | Live browser and typecheck verified. |
 | Runtime disclosure | A C++ execution used the live `wandbox-source` fallback and stated that package, shell, project-file, and persistence behavior requires Oracle. | Live browser verified. |
 | SK-AI availability state | The AI panel displayed current-file context and disabled sending until an API key or the optional provider is configured. | Live browser verified. |
+| Result Center refinement | C++ output displayed the active file, completed status, optional Program input control, Interactive terminal route, and plain-language Run details. | Live browser verified. |
+| User-focused terminal language | SK Shell now describes a live workspace and honest availability state without exposing hosting or deployment names. Legacy persisted text is normalized on reload. | Live browser and typecheck verified. |
+| Responsive Result Center | At a 390 × 844 viewport, Result status, Program input, and Interactive terminal actions fit above the unchanged seven-tab navigation. | Live browser verified. |
+| Simplified folder actions | Premature Build Project and Run Project menu actions were removed; folders retain the requested Terminal and GitHub workspace entry points. | Typecheck verified. |
+| Public Help and policies | Help, Privacy, and Terms pages use user-facing language, explain supported result paths, and include separate new-tab public footer links. | Live browser and typecheck verified. |
+| AI privacy boundary | The user-key assistant prompt is limited to supplied user-workspace context, requires approved action proposals, and forbids disclosure of private product implementation. | Typecheck verified. |
 
 ## Verification details
 
 The frontend production build completed with 1,755 transformed modules. The build emitted two non-blocking optimization warnings: a JSZip import cannot be split because it is also statically imported elsewhere, and the resulting main JavaScript chunk is above Vite's 500 kB advisory threshold. These warnings do not prevent deployment or execution, but they identify a future optimization opportunity to code-split non-critical IDE panels.
 
 The connected browser completed a final responsive visual smoke check. At a 390 × 844 viewport, the terminal keyboard row and all seven bottom-navigation destinations remained reachable. The source-file menu exposed only the applicable run affordance; C++ execution opened the shared Console, exposed the pre-run input control, and the Runtime tab truthfully disclosed the active public fallback. The AI workspace remained visible with active-file context and an explicit configuration-required state rather than a fabricated response.
+
+The safe-upgrade browser check re-ran the C++ flow after the Result Center revision. The Console identified `probe.cpp`, showed a completed state, kept Program input collapsed until requested, and offered an explicit Interactive terminal route. The compact mobile layout retained both actions without covering the seven-tab navigation. The public Help and Privacy pages rendered independently of the IDE and used task-focused language with professional footer links. The frontend release build and backend typecheck and bundle build passed; Vite reported only its existing non-blocking JSZip and bundle-size optimization warnings.
 
 ## Large-project lifecycle behavior
 

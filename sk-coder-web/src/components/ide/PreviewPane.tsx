@@ -7,7 +7,7 @@ import type { PreviewViewport } from "@/types/ide"
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
 
 export default function PreviewPane() {
-  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult } = useIDEStore()
+  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [externalUrl, setExternalUrl] = useState("")
   const [liveUrl, setLiveUrl] = useState("")
@@ -15,6 +15,7 @@ export default function PreviewPane() {
   const [loadError, setLoadError] = useState(false)
   const [resultMode, setResultMode] = useState<ResultMode>("preview")
   const [programInput, setProgramInput] = useState("")
+  const [showProgramInput, setShowProgramInput] = useState(false)
   const [runningWithInput, setRunningWithInput] = useState(false)
 
   const viewport = settings.preview.viewport
@@ -100,13 +101,26 @@ export default function PreviewPane() {
   const cfg = viewportConfig[viewport]
   const result = previewResult as (typeof previewResult & { tier?: string; capability?: string; executionTime?: number; files?: { name: string; url?: string }[] }) | null
   const problemLines = result?.stderr?.split("\n").filter((line) => /error|warning|exception|traceback/i.test(line)) ?? []
-  const runtimeLabel = result?.tier || (showExternal ? "External Preview" : "Browser Static Preview")
+  const activeExtension = activeFile?.path.split(".").pop()?.toLowerCase() || activeFile?.language || ""
+  const supportsConsoleInput = Boolean(activeFile && !["html", "htm", "css", "md", "json"].includes(activeExtension))
+  const resultStatus = !result ? "Ready" : result.exitCode === 0 ? "Completed" : "Needs attention"
+  const runDetail = !result
+    ? showExternal
+      ? "Viewing an external web page."
+      : "Select a runnable file to see its result."
+    : result.tier === "oracle-workspace"
+      ? "This ran in the active workspace. Supported project files and installed dependencies can be used here."
+      : result.tier === "wandbox-source"
+        ? "This ran in single-file mode. Open Interactive terminal for project files, packages, or live prompts."
+        : result.tier === "pyodide-browser"
+          ? "This ran as a local Python source file. Open Interactive terminal for project work or live prompts."
+          : "No compatible runtime is available for this file right now."
   const modeButtons: { id: ResultMode; label: string }[] = [
     { id: "preview", label: "Preview" },
     { id: "console", label: "Console" },
     { id: "problems", label: `Problems${problemLines.length ? ` (${problemLines.length})` : ""}` },
     { id: "files", label: "Files Produced" },
-    { id: "runtime", label: "Runtime" },
+    { id: "runtime", label: "Run details" },
   ]
 
   async function runWithInput() {
@@ -129,6 +143,11 @@ export default function PreviewPane() {
     } finally {
       setRunningWithInput(false)
     }
+  }
+
+  function openInteractiveTerminal() {
+    if (!activeFile) return
+    openFileInTerminal(activeFile.path, "shell")
   }
 
   return (
@@ -200,16 +219,33 @@ export default function PreviewPane() {
 
       <div className="preview-content-area">
         {resultMode === "console" ? (
-          <div style={{ width: "100%", height: "100%", background: "#0d1117", fontFamily: "'JetBrains Mono','Fira Code',monospace", fontSize: 13, padding: "1rem", overflowY: "auto", boxSizing: "border-box" }}>
-            {activeFile && !["html", "htm", "css", "md", "json"].includes(activeFile.path.split(".").pop()?.toLowerCase() || "") && (
+          <div className="result-console">
+            <div className="result-summary-header">
+              <div>
+                <span className="result-summary-label">Result</span>
+                <strong>{activeFile?.name || "No file selected"}</strong>
+              </div>
+              <span className={`result-status ${result?.exitCode === 0 ? "success" : result ? "error" : "neutral"}`}>{resultStatus}</span>
+            </div>
+            {supportsConsoleInput && (
+              <div className="result-action-row">
+                <button className={`btn btn-ghost ${showProgramInput ? "active" : ""}`} onClick={() => setShowProgramInput((visible) => !visible)}>
+                  {showProgramInput ? "Hide program input" : "Program input"}
+                </button>
+                <button className="btn btn-secondary" onClick={openInteractiveTerminal}>
+                  Open interactive terminal
+                </button>
+              </div>
+            )}
+            {supportsConsoleInput && showProgramInput && (
               <div className="program-input-card">
                 <div>
-                  <strong>Input before run</strong>
-                  <span>Use one line per prompt. For live prompts after launch, use SK Shell on Oracle.</span>
+                  <strong>Program input</strong>
+                  <span>Add values your program should read, one value per line.</span>
                 </div>
                 <textarea value={programInput} onChange={(event) => setProgramInput(event.target.value)} placeholder={"Example:\n10\n20"} spellCheck={false} />
                 <button className="btn btn-secondary" onClick={() => void runWithInput()} disabled={runningWithInput}>
-                  {runningWithInput ? "Running…" : "Run with input"}
+                  {runningWithInput ? "Running…" : "Run with these values"}
                 </button>
               </div>
             )}
@@ -220,7 +256,7 @@ export default function PreviewPane() {
               <pre style={{ margin: result.stdout ? "0.75rem 0 0" : 0, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#f97583" }}>{result.stderr}</pre>
             )}
             {!result?.stdout && !result?.stderr && (
-              <span style={{ color: "#8b949e" }}>Run a file, build a project, or start SK Shell to view output here.</span>
+              <span style={{ color: "#8b949e" }}>Select a runnable file to see its result here.</span>
             )}
             <div style={{ marginTop: "0.75rem", color: result?.exitCode === 0 ? "#56d364" : "#f97583", fontSize: 11, borderTop: "1px solid #21262d", paddingTop: "0.5rem" }}>
               exit code: {result?.exitCode ?? "—"}
@@ -236,10 +272,10 @@ export default function PreviewPane() {
           </div>
         ) : resultMode === "runtime" ? (
           <div style={{ width: "100%", height: "100%", background: "#0d1117", padding: "1rem", overflowY: "auto", boxSizing: "border-box", color: "#e6edf3" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: "0.8rem" }}>Execution location</div>
-            <div style={{ fontFamily: "var(--font-mono)", color: runtimeLabel === "Oracle Workspace" ? "#56d364" : "#58a6ff", fontSize: 12 }}>{runtimeLabel}</div>
-            <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem", lineHeight: 1.6 }}>{result?.capability || (runtimeLabel === "Browser Static Preview" ? "Static HTML, CSS, and JavaScript preview runs in the browser. Full projects, terminal commands, packages, and server previews require Oracle Workspace." : "Runtime details appear after execution.")}</div>
-            {result?.executionTime !== undefined && <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem" }}>Duration: {result.executionTime} ms</div>}
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: "0.8rem" }}>Run details</div>
+            <div style={{ fontFamily: "var(--font-mono)", color: result?.exitCode === 0 ? "#56d364" : result ? "#f97583" : "#58a6ff", fontSize: 12 }}>{resultStatus}</div>
+            <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem", lineHeight: 1.6 }}>{runDetail}</div>
+            {result?.executionTime !== undefined && <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem" }}>Finished in {result.executionTime} ms</div>}
           </div>
         ) : viewport === "desktop" ? (
           <div className="preview-frame-full">

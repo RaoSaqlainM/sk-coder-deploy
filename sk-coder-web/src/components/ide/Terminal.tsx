@@ -52,7 +52,7 @@ function mkLine(type: TermLine["type"], content: string): TermLine {
 
 function initState(type: TermType): TabState {
   const welcomes: Record<TermType, string> = {
-    shell: "SK Shell — Oracle workspace commands when connected · local file utilities when offline",
+    shell: "SK Shell — Live workspace commands when available · local file utilities when offline",
     python: "Python Run — source execution; project commands use SK Shell",
     nodejs: "Node.js Run — source execution; project commands use SK Shell",
     java: "Java Run — source execution; project commands use SK Shell",
@@ -139,7 +139,7 @@ function isWorkspaceCommand(input: string) {
 }
 
 const ADD_OPTIONS: { type: TermType; label: string; desc: string }[] = [
-  { type: "shell", label: "SK Shell", desc: "Real Oracle workspace terminal for Node.js, packages, builds, and commands" },
+  { type: "shell", label: "SK Shell", desc: "Live workspace terminal for Node.js, packages, builds, and commands" },
   { type: "ai", label: "AI Terminal", desc: "Workspace-aware help with explicit approvals" },
 ]
 
@@ -219,6 +219,9 @@ function loadPersistedTerminalState() {
     for (const tab of tabs) {
       const state = { ...(parsed.tabStates[tab.id] ?? initState(tab.type)), running: false }
       if (tab.type === "shell") {
+        state.lines = state.lines.map((line) => line.content === "SK Shell — Oracle workspace commands when connected · local file utilities when offline"
+          ? { ...line, content: "SK Shell — Live workspace commands when available · local file utilities when offline" }
+          : line)
         let unavailableSeen = false
         state.lines = state.lines.filter((line) => {
           if (!/isolated runtime service is not available|Oracle Docker workspace is unavailable/i.test(line.content)) return true
@@ -300,7 +303,7 @@ export default function MultiTerminal() {
           return
         }
         const readableMessage = /isolated runtime service is not available/i.test(message)
-          ? "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online."
+          ? "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready."
           : message
         if (terminalErrorMessagesRef.current.has(`${tabId}:${readableMessage}`)) return
         terminalErrorMessagesRef.current.add(`${tabId}:${readableMessage}`)
@@ -319,7 +322,7 @@ export default function MultiTerminal() {
     let disposed = false
     void isBackendAvailable().then((available) => {
       if (disposed || !available) {
-        if (!disposed) addLine("shell-1", "info", "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online.")
+        if (!disposed) addLine("shell-1", "info", "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready.")
         return
       }
       connectShell("shell-1")
@@ -598,7 +601,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     }
 
     if (isWorkspaceCommand(input)) {
-      addLine(tabId, "error", `${cmd} requires an active Oracle workspace session. Configure and connect the backend, then run this command in SK Shell.`)
+      addLine(tabId, "error", `${cmd} requires an active live workspace. Connect a workspace, then run this command in SK Shell.`)
       return
     }
 
@@ -849,7 +852,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
       }
       if (unavailableSeen) return lines
       unavailableSeen = true
-      lines.push({ ...line, type: "info", content: "Oracle Docker workspace is unavailable. SK Shell will activate when the Oracle runtime service is online." })
+      lines.push({ ...line, type: "info", content: "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready." })
       return lines
     }, [])
   })()
@@ -924,7 +927,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
           {workspaceLifecycle && workspaceSessionIdRef.current && (
             <>
               <span title={`Workspace expires ${new Date(workspaceLifecycle.expiresAt).toLocaleString()}`} style={{ color: workspaceLifecycle.state === "scheduled-delete" ? "#e3b341" : "var(--green)", fontSize: 10, whiteSpace: "nowrap" }}>
-                Oracle · {workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
+                Workspace · {workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
               </span>
               <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current

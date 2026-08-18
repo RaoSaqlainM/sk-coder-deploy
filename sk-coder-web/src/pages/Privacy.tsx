@@ -1,4 +1,5 @@
 import { useLocation } from "wouter"
+import PublicFooter from "@/components/PublicFooter"
 
 export default function PrivacyPage() {
   const [, navigate] = useLocation()
@@ -7,55 +8,36 @@ export default function PrivacyPage() {
     <div className="page-layout">
       <div className="page-content">
         <button className="page-back" onClick={() => navigate("/")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
           Back to SK Coder
         </button>
 
         <h1>Privacy Policy</h1>
-        <p style={{ color: "var(--text-muted)", marginBottom: "2rem" }}>Last updated: May 2026</p>
+        <p style={{ color: "var(--text-muted)", marginBottom: "2rem" }}>Last updated: August 2026</p>
 
         <h2>Overview</h2>
-        <p>
-          SK Coder is a browser-based coding workspace built by Saqlain King. Your privacy is important. This policy explains what data is stored and how it's used.
-        </p>
+        <p>SK Coder is a browser-based coding workspace. This policy explains how project data, connection settings, and optional third-party services are used when you choose to use them.</p>
 
-        <h2>Data Storage</h2>
-        <p>
-          All your project files and settings are stored <strong>locally in your browser</strong> using localStorage. Your code never leaves your device unless you explicitly use a feature that requires a network call (AI assistant, Piston code runner, GitHub Codespaces).
-        </p>
-        <ul>
-          <li>File contents are saved with the key prefix <code style={{ color: "var(--orange)" }}>sk-file:</code> in localStorage</li>
-          <li>Settings (including API keys) are encrypted in localStorage under <code style={{ color: "var(--orange)" }}>sk-coder-workspace-v2</code></li>
-          <li>No accounts, no sign-in, no servers storing your data</li>
-        </ul>
+        <h2>Your project data</h2>
+        <p>SK Coder keeps a browser-local project mirror to support editing and export. Clearing browser site data can remove that local mirror, so export important work as a ZIP file.</p>
+        <p>When you start a live workspace or run a file, the files needed for that requested action may be sent to the selected execution service. Do not place secrets, private keys, or production credentials in projects unless you understand and accept the destination you choose.</p>
 
-        <h2>API Keys</h2>
-        <p>
-          If you add an AI API key, it is stored only in your browser's localStorage. It is never sent to any server other than the AI provider you chose when making AI requests.
-        </p>
+        <h2>AI and GitHub connections</h2>
+        <p>If you connect an AI provider, the messages and workspace excerpts needed for your request are sent to that provider. SK Coder AI uses a bounded active-file-first context and asks for approval before it proposes workspace actions.</p>
+        <p>If you connect GitHub, the repository access token is used only for the GitHub actions you request. Use a fine-grained token, restrict it to selected repositories, grant the minimum permissions, and set an expiry.</p>
 
-        <h2>Third-Party Services</h2>
-        <p>SK Coder may make requests to the following third-party services based on your actions:</p>
-        <ul>
-          <li><strong>Your AI provider</strong> — only when you send a chat message. Subject to the provider's own privacy policy.</li>
-          <li><strong>Piston API (emkc.org)</strong> — only when you run C++/Java/Rust/Go code. Only the code you submit is sent.</li>
-          <li><strong>GitHub API</strong> — only when you connect a GitHub token and use SK Git.</li>
-          <li><strong>Pyodide CDN (jsDelivr)</strong> — the Python runtime is downloaded from a CDN on first use.</li>
-        </ul>
+        <h2>Keys and settings</h2>
+        <p>Settings and connection keys are stored in browser storage associated with this application. Treat API keys and GitHub tokens as passwords. Use short-lived, least-privilege credentials and remove them from Settings when they are no longer needed.</p>
 
-        <h2>Analytics</h2>
-        <p>SK Coder does not use any analytics, tracking pixels, or telemetry of any kind.</p>
+        <h2>Advertising and public pages</h2>
+        <p>SK Coder does not place advertising inside the editor, terminal, preview controls, Result Center, or workspace navigation. If advertising is enabled on public Help or policy pages in the future, it will be visually separate from product controls and governed by the provider's own privacy notice.</p>
 
-        <h2>Children's Privacy</h2>
-        <p>SK Coder does not knowingly collect personal data from children under 13.</p>
-
-        <h2>Changes</h2>
-        <p>If this policy changes, the updated version will be posted at this URL with a new date.</p>
+        <h2>Children and changes</h2>
+        <p>SK Coder is not designed to knowingly collect personal data from children. This policy may change as product features change. The updated version will be posted at this address with a new date.</p>
 
         <h2>Contact</h2>
-        <p>Questions about this policy? Open the AI assistant in SK Coder and ask, or reach out through the project's GitHub page.</p>
+        <p>For privacy questions, use the project’s GitHub contact channel.</p>
+        <PublicFooter />
       </div>
     </div>
   )
