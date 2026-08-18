@@ -87,3 +87,11 @@
 - [x] Audit stored settings and API-key behavior, then make the UI clearly explain what is stored locally, what is only sent after a user action, and how to remove it.
 - [x] Extend the detailed user guide with GitHub import/export, multi-selection, file movement, result interaction, and realistic runtime guidance.
 - [x] Re-test the frontend and API server together, distinguishing verified browser behavior from live-workspace behavior that still requires deployment infrastructure.
+- [x] Reproduce and repair the per-terminal clear/delete action so it confirms intent, clears only the chosen terminal session, and does not hang the IDE.
+- [x] Audit archive detection and implement safe extract actions only for supported archive formats, with extracted content placed in a same-named folder and clear handling for unsupported containers such as JAR or APK.
+- [x] Repair source execution routing so normal Run File opens the shared Result Center directly rather than first taking the user to the terminal workspace.
+- [x] Improve SK Shell path visibility, command-entry ergonomics, terminal tabs, command history, and folder navigation without simulating a live workspace when it is unavailable.
+- [ ] Audit and strengthen SK Coder AI workspace context, approved-action behavior, APK text/manifest analysis, and honest unavailable states.
+- [ ] Expand the APK workspace capabilities that can safely run in-browser, including archive inspection, extracted-resource editing, manifest/package-name editing where valid, icon replacement preparation, and rebuilt-APK limitations.
+- [x] Expand the Help manual into an exhaustive, capability-accurate language, file-type, archive, project, game, result, terminal, GitHub, AI, and APK reference without promising unsupported GUI execution.
+- [ ] Verify Java game, native GUI, and heavy-project behavior against the real runtime boundary and document only viable browser, console, artifact, or remote-workspace outcomes.

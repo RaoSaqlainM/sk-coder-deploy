@@ -24,14 +24,64 @@ const SKIP_ENTRIES = new Set([
   "node_modules", ".next", "dist", "build", ".cache", ".venv",
 ])
 
+const ZIP_COMPATIBLE_ARCHIVE_EXTENSIONS = new Set([
+  "zip", "jar", "apk", "xapk", "apks", "war", "ear", "aar",
+])
+
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
+const MAX_ARCHIVE_ENTRIES = 4000
+
 function shouldSkip(name: string): boolean {
   return SKIP_ENTRIES.has(name) || name.startsWith(".")
+}
+
+function archiveRootName(filename: string): string {
+  return filename.replace(/\.(zip|jar|apk|xapk|apks|war|ear|aar)$/i, "") || "archive"
+}
+
+function rebaseArchiveNodes(nodes: FileNode[], rootName: string): FileNode {
+  const rootPath = `/${rootName}`
+  function rebase(node: FileNode, parentPath: string): FileNode {
+    const path = `${parentPath}/${node.name}`
+    return {
+      ...node,
+      id: generateId(),
+      path,
+      children: node.children?.map((child) => rebase(child, path)),
+    }
+  }
+  return {
+    id: generateId(),
+    name: rootName,
+    type: "folder",
+    path: rootPath,
+    children: nodes.map((node) => rebase(node, rootPath)),
+  }
+}
+
+export function isZipCompatibleArchive(filename: string): boolean {
+  const extension = filename.split(".").pop()?.toLowerCase() || ""
+  return ZIP_COMPATIBLE_ARCHIVE_EXTENSIONS.has(extension)
+}
+
+export async function importFromArchive(file: File): Promise<FileNode[]> {
+  if (!isZipCompatibleArchive(file.name)) {
+    throw new Error("This archive format is not supported for browser extraction")
+  }
+  if (file.size > MAX_ARCHIVE_BYTES) {
+    throw new Error("Archive is larger than the browser extraction limit")
+  }
+  const nodes = await importFromZip(file)
+  return [rebaseArchiveNodes(nodes, archiveRootName(file.name))]
 }
 
 export async function importFromZip(file: File): Promise<FileNode[]> {
   try {
     const zip = await JSZip.loadAsync(file)
     const sortedPaths = Object.keys(zip.files).sort()
+    if (sortedPaths.length > MAX_ARCHIVE_ENTRIES) {
+      throw new Error("Archive contains too many entries for browser extraction")
+    }
 
     const pathMap = new Map<string, FileNode>()
     const roots: FileNode[] = []

@@ -57,16 +57,28 @@ export default function GuidePage() {
 
         <h2>Supported workspaces</h2>
         <table>
-          <thead><tr><th>Family</th><th>Typical files and projects</th></tr></thead>
+          <thead><tr><th>Language or file type</th><th>Run or preview path</th><th>Important limit</th></tr></thead>
           <tbody>
-            <tr><td>Web and Node</td><td>JavaScript, TypeScript, Vite, React, Next.js, NestJS, and package-based projects.</td></tr>
-            <tr><td>Python</td><td>Python scripts, data tools, requirements files, and Python projects.</td></tr>
-            <tr><td>JVM</td><td>Java, Kotlin, Maven, Gradle, and text-based console applications.</td></tr>
-            <tr><td>Native and systems</td><td>C, C++, CMake, Make, Rust, Cargo, and Go.</td></tr>
-            <tr><td>Server-side scripting</td><td>PHP, Ruby, shell scripts, Composer, and Gemfile projects.</td></tr>
+            <tr><td>HTML, CSS, JavaScript browser projects</td><td>Preview static sites and browser games with local assets.</td><td>Server routes, package installs, and build tooling need SK Shell.</td></tr>
+            <tr><td>JavaScript and Node.js: .js, .mjs, .cjs, .jsx</td><td>Run a single source file. Use SK Shell for npm, pnpm, Yarn, Vite, React, Next.js, NestJS, and multi-file projects.</td><td>Public source runs are not a package shell or long-running web server.</td></tr>
+            <tr><td>TypeScript: .ts, .tsx</td><td>Run supported single source files. Use SK Shell for tsconfig, package dependencies, frameworks, and builds.</td><td>Framework projects need a live workspace.</td></tr>
+            <tr><td>Python and NumPy: .py</td><td>Run supported single source files with Program input. Use SK Shell for virtual environments, pip, requirements files, and projects.</td><td>Browser fallback is source-only and cannot promise arbitrary packages.</td></tr>
+            <tr><td>Java: .java, JAR projects</td><td>Run console source files. Use SK Shell for Maven, Gradle, multiple classes, JAR packaging, and interactive programs.</td><td>Console games can run; Swing, AWT, and JavaFX windows are not browser previews.</td></tr>
+            <tr><td>Kotlin: .kt</td><td>Use SK Shell for compile and project commands.</td><td>No public single-file fallback is promised.</td></tr>
+            <tr><td>C and C++: .c, .cpp, .cc, .h</td><td>Run supported console source files with Program input. Use SK Shell for CMake, Make, headers, libraries, and projects.</td><td>Native desktop windows need a separate desktop environment.</td></tr>
+            <tr><td>Rust: .rs</td><td>Run supported source files. Use SK Shell for Cargo crates, dependencies, tests, and workspaces.</td><td>Package and multi-crate work requires a live workspace.</td></tr>
+            <tr><td>Go: .go</td><td>Run supported source files. Use SK Shell for modules, tests, and services.</td><td>Module downloads and servers require a live workspace.</td></tr>
+            <tr><td>PHP: .php and Ruby: .rb</td><td>Run supported source files. Use SK Shell for Composer, Bundler, frameworks, and server projects.</td><td>Web frameworks need a live workspace and preview process.</td></tr>
+            <tr><td>Bash and shell: .sh</td><td>Use SK Shell for commands and scripts.</td><td>Shell access depends on a live workspace connection.</td></tr>
+            <tr><td>JSON, XML, YAML, TOML, Markdown, SQL, text, config files</td><td>Edit, search, export, and use as project input.</td><td>They do not have a standalone run action.</td></tr>
+            <tr><td>Other languages and binary formats</td><td>SK Coder can keep and edit text files when possible.</td><td>If a language is not listed above, direct execution is not promised. Use a suitable live environment or external tool.</td></tr>
           </tbody>
         </table>
-        <p>SK Coder can edit any text file. A run action appears only when a supported runtime and workflow are available. Some languages, desktop toolkits, mobile builds, game engines, hardware tools, and specialist packages need an environment outside the normal browser workspace.</p>
+        <p>SK Coder can edit any text file. A run action appears only when a supported runtime and workflow are available. It does not claim to run every programming language, game engine, desktop toolkit, mobile build, hardware tool, or specialist package in a browser.</p>
+
+        <h2>Archives and extracted folders</h2>
+        <p>When you import a ZIP-compatible archive, SK Coder extracts it into a new folder with the same name as the archive. Supported browser extraction formats are <strong>.zip, .jar, .apk, .xapk, .apks, .war, .ear, and .aar</strong>. These formats share ZIP container structure.</p>
+        <p>Protected, multi-volume, damaged, unusually large, or very large-entry archives can fail safely. Formats such as <strong>.rar, .7z, .tar, .gz, .bz2, and .xz</strong> are not extracted in the browser. Keep the original archive or use a live workspace or external archive utility for those formats.</p>
 
         <h2>SK Shell and AI Terminal</h2>
         <p><strong>SK Shell</strong> is the full terminal. Use it for folders, <code>cd</code>, Git, Node.js, package installs, compiler commands, build tools, and live text programs. Each SK Shell tab keeps its own current folder, command history, and transcript.</p>
@@ -94,7 +106,7 @@ export default function GuidePage() {
         <p>Use <strong>Push Files</strong> to choose a repository, enter a commit message, and explicitly commit the current Explorer files. Repository creation, import, and push happen only after you choose the relevant GitHub action. Settings shows how to disconnect and remove the saved local token.</p>
 
         <h2>APK and ZIP editor</h2>
-        <p>The APK section is a file editor and repackaging tool for APK or ZIP archives. It can browse and edit supported extracted text files, then save a changed archive for download. It is not an Android emulator, Android Studio, a full decompiler, or a signing service.</p>
+        <p>The APK section is a file editor and repackaging tool for APK or ZIP archives. It can browse archive entries, edit supported text resources such as XML, JSON, SMALI, properties, Gradle files, and text, then save a changed archive for download. It can prepare a changed resource archive, but it is not Android Studio, a full decompiler, an Android emulator, a signing service, or a guaranteed package-name editor for binary Android manifests.</p>
 
         <h2>Exporting and safe deletion</h2>
         <p>Use Download to export a project as a ZIP at any time. Export important work before deleting it. Workspace retention controls apply to the live workspace; a manual browser-data clear can also remove the local source mirror.</p>

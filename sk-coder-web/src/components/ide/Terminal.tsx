@@ -1,8 +1,4 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react"
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { useIDEStore } from "@/store/ideStore"
 import { execute, type ExecResponse } from "@/lib/executorChain"
 import { createTerminalWebSocket, getWorkspaceLifecycle, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner"
@@ -244,7 +240,6 @@ export default function MultiTerminal() {
 
   const [tabs, setTabs] = useState<TabDef[]>(() => loadPersistedTerminalState()?.tabs ?? DEFAULT_TABS)
   const [activeTab, setActiveTab] = useState(() => loadPersistedTerminalState()?.activeTab ?? "shell-1")
-  const [clearTabPending, setClearTabPending] = useState<string | null>(null)
   const [tabStates, setTabStates] = useState<Record<string, TabState>>(() => loadPersistedTerminalState()?.tabStates ?? DEFAULT_STATES)
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number } | null>(null)
@@ -424,17 +419,12 @@ export default function MultiTerminal() {
 
 const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
 
-  function clearTab(tabId: string) {
-    updateState(tabId, { lines: [] })
-  }
-
-  function confirmClearTab(tabId: string) {
+  function clearTerminalHistory(tabId: string) {
     if (DEFAULT_TAB_IDS.includes(tabId)) {
       updateState(tabId, { lines: [], cwd: "/", history: [] })
     } else {
       updateState(tabId, { lines: [] })
     }
-    setClearTabPending(null)
   }
 
   function addNewTab(type: TermType) {
@@ -469,8 +459,16 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     const state = tabStates[tabId]
     const cwd = state?.cwd || "/"
     const terminalSocket = terminalSocketsRef.current.get(tabId)
+    const parts = input.trim().split(/\s+/)
+    const cmd = parts[0].toLowerCase()
+    const args = parts.slice(1)
     if (workspaceSessionIdRef.current && terminalSocket) {
       try {
+        if (cmd === "cd") {
+          const target = resolvePath(cwd, args[0] || "/")
+          const node = target === "/" ? null : findNodeAtPath(fileTree, target)
+          if (target === "/" || node?.type === "folder") updateState(tabId, { cwd: target })
+        }
         await syncWorkspaceFiles(workspaceSessionIdRef.current, collectWorkspaceFiles(fileTree))
         terminalSocket.sendCommand(input)
         return
@@ -479,10 +477,6 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         addLine(tabId, "error", error instanceof Error ? error.message : "Workspace synchronization failed.")
       }
     }
-    const parts = input.trim().split(/\s+/)
-    const cmd = parts[0].toLowerCase()
-    const args = parts.slice(1)
-
     if (cmd === "help") {
       const help = [
         "SK Shell commands:",
@@ -946,7 +940,10 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
               }}>Delete</button>
             </>
           )}
-          <button className="btn-icon" onClick={() => setClearTabPending(activeTab)} title="Clear terminal">
+          <button className="btn-icon" onClick={() => {
+            const tab = tabs.find((item) => item.id === activeTab)
+            if (window.confirm(`Clear the history for ${tab?.label ?? "this terminal"}?`)) clearTerminalHistory(activeTab)
+          }} title="Clear terminal">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -1036,19 +1033,6 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         </button>
       </div>
 
-      <AlertDialog open={clearTabPending !== null} onOpenChange={(open) => { if (!open) setClearTabPending(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear this terminal's history?</AlertDialogTitle>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => clearTabPending && confirmClearTab(clearTabPending)}>
-              Clear
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

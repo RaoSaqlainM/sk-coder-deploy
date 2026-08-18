@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo, memo } from "react"
 import { MoreVertical } from "lucide-react"
 import { useIDEStore } from "@/store/ideStore"
-import { importFromZip, importFromFiles, exportToZip, downloadBlob } from "@/lib/importProject"
+import { importFromArchive, importFromFiles, isZipCompatibleArchive, exportToZip, downloadBlob } from "@/lib/importProject"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
 
@@ -272,19 +272,19 @@ export default function FileExplorer() {
 
   async function handleSmartImport(files: FileList) {
     if (!files.length) return
-    const zipFile = Array.from(files).find((f) => f.name.toLowerCase().endsWith(".zip"))
+    const archiveFile = Array.from(files).find((file) => isZipCompatibleArchive(file.name))
     try {
-      if (zipFile) {
-        const nodes = await importFromZip(zipFile)
+      if (archiveFile) {
+        const nodes = await importFromArchive(archiveFile)
         importFiles(nodes)
-        toast.success(`Imported ${zipFile.name}`)
+        toast.success(`Extracted ${archiveFile.name} into ${archiveFile.name.replace(/\.[^.]+$/, "")}`)
       } else {
         const nodes = await importFromFiles(files)
         importFiles(nodes)
         toast.success(`Imported ${files.length} file(s)`)
       }
-    } catch {
-      toast.error("Import failed")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Import failed")
     }
   }
 
@@ -362,7 +362,7 @@ export default function FileExplorer() {
               <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
             </svg>
           </button>
-          <button className="file-explorer-action-btn" onClick={() => importInputRef.current?.click()} title="Import files or ZIP">
+          <button className="file-explorer-action-btn" onClick={() => importInputRef.current?.click()} title="Import files or supported archive">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -398,7 +398,7 @@ export default function FileExplorer() {
       </div>
 
       <div className="file-tree">
-        {dragActive && <div className="import-drop-zone drag-active" style={{ margin: "0.5rem" }}>Drop ZIP or files here</div>}
+        {dragActive && <div className="import-drop-zone drag-active" style={{ margin: "0.5rem" }}>Drop files or a ZIP-compatible archive here</div>}
 
         {displayTree.length === 0 && !dragActive && (
           <div className="panel-placeholder" style={{ padding: "1.5rem" }}>
