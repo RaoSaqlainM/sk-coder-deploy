@@ -41,6 +41,7 @@ const RUNTIME_CONFIGS: Record<string, RuntimeConfig> = {
   c: { backend: "c", wandboxPrefixes: ["gcc-"], filename: "main.c", compilerFilter: (name) => name.endsWith("-c") },
   cpp: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp", compilerFilter: (name) => !name.endsWith("-c") && !name.endsWith("-pp") },
   cc: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp", compilerFilter: (name) => !name.endsWith("-c") && !name.endsWith("-pp") },
+  cxx: { backend: "cpp", wandboxPrefixes: ["gcc-"], filename: "main.cpp", compilerFilter: (name) => !name.endsWith("-c") && !name.endsWith("-pp") },
   rust: { backend: "rust", wandboxPrefixes: ["rust-"], filename: "main.rs" },
   rs: { backend: "rust", wandboxPrefixes: ["rust-"], filename: "main.rs" },
   go: { backend: "go", wandboxPrefixes: ["go-"], filename: "main.go" },
@@ -49,6 +50,7 @@ const RUNTIME_CONFIGS: Record<string, RuntimeConfig> = {
   rb: { backend: "ruby", wandboxPrefixes: ["ruby-"], filename: "main.rb" },
   kotlin: { backend: "kotlin", wandboxPrefixes: [], filename: "Main.kt" },
   kt: { backend: "kotlin", wandboxPrefixes: [], filename: "Main.kt" },
+  kts: { backend: "kotlin", wandboxPrefixes: [], filename: "Main.kts" },
   bash: { backend: "bash", wandboxPrefixes: ["bash"], filename: "main.sh" },
   sh: { backend: "bash", wandboxPrefixes: ["bash"], filename: "main.sh" },
 }
