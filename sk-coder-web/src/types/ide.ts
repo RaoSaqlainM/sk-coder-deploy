@@ -3,6 +3,7 @@ export type FileNode = {
   name: string
   type: "file" | "folder"
   content?: string
+  assetData?: string
   children?: FileNode[]
   language?: string
   path: string

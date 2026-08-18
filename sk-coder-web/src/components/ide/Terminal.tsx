@@ -38,6 +38,7 @@ type TabState = {
   input: string
   history: string[]
   histIdx: number
+  historyDraft: string
   cwd: string
   running: boolean
 }
@@ -59,6 +60,7 @@ function initState(type: TermType): TabState {
     input: "",
     history: [],
     histIdx: -1,
+    historyDraft: "",
     cwd: "/",
     running: false,
   }
@@ -249,7 +251,7 @@ export default function MultiTerminal() {
   const addBtnRef = useRef<HTMLButtonElement>(null)
 
   const outputRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const terminalSocketsRef = useRef(new Map<string, ReturnType<typeof createTerminalWebSocket>>())
   const workspaceSessionIdRef = useRef<string | null>(null)
   const terminalErrorMessagesRef = useRef(new Set<string>())
@@ -422,9 +424,9 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
 
   function clearTerminalHistory(tabId: string) {
     if (DEFAULT_TAB_IDS.includes(tabId)) {
-      updateState(tabId, { lines: [], cwd: "/", history: [] })
+      updateState(tabId, { lines: [], cwd: "/", history: [], input: "", histIdx: -1, historyDraft: "" })
     } else {
-      updateState(tabId, { lines: [] })
+      updateState(tabId, { lines: [], input: "", histIdx: -1, historyDraft: "" })
     }
   }
 
@@ -723,7 +725,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     if (!input || state?.running) return
     const type = tabs.find((t) => t.id === tabId)?.type || "shell"
     const newHistory = [input, ...(state.history || []).slice(0, 99)]
-    updateState(tabId, { input: "", history: newHistory, histIdx: -1 })
+    updateState(tabId, { input: "", history: newHistory, histIdx: -1, historyDraft: "" })
     const prompts: Record<TermType, string> = { shell: `[${state.cwd || "/"}]$`, python: ">>>", nodejs: ">", java: "java>", ai: "you>" }
     if (type === "shell" && input === "help") {
       addLine(tabId, "info", "Tip: right-click a file to open it in the terminal or run it directly.")
@@ -751,23 +753,24 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>, tabId: string) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>, tabId: string) {
     const state = tabStates[tabId]
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter") {
       e.preventDefault()
       void handleSubmit(tabId)
       return
     }
     if (e.key === "ArrowUp") {
       e.preventDefault()
+      if (!state?.history?.length) return
       const next = Math.min((state?.histIdx ?? -1) + 1, (state?.history?.length ?? 0) - 1)
-      updateState(tabId, { histIdx: next, input: state?.history?.[next] || "" })
+      updateState(tabId, { histIdx: next, historyDraft: state?.histIdx === -1 ? state.input : state?.historyDraft || "", input: state?.history?.[next] || "" })
       return
     }
     if (e.key === "ArrowDown") {
       e.preventDefault()
       const next = Math.max((state?.histIdx ?? -1) - 1, -1)
-      updateState(tabId, { histIdx: next, input: next === -1 ? "" : state?.history?.[next] || "" })
+      updateState(tabId, { histIdx: next, input: next === -1 ? state?.historyDraft || "" : state?.history?.[next] || "" })
       return
     }
     if (e.key === "c" && e.ctrlKey) {
@@ -809,20 +812,21 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
       updateState(tabId, { input: "", running: false })
       return
     }
-    if (socket) {
-      socket.sendInput(sequences[key])
+    const state = tabStates[tabId]
+    if (key === "up" && !state?.running) {
+      if (!state?.history?.length) return
+      const next = Math.min((state?.histIdx ?? -1) + 1, (state?.history?.length ?? 0) - 1)
+      updateState(tabId, { histIdx: next, historyDraft: state?.histIdx === -1 ? state.input : state?.historyDraft || "", input: state?.history?.[next] || "" })
       inputRef.current?.focus()
       return
     }
-    const state = tabStates[tabId]
-    if (key === "up") {
-      const next = Math.min((state?.histIdx ?? -1) + 1, (state?.history?.length ?? 0) - 1)
-      updateState(tabId, { histIdx: next, input: state?.history?.[next] || "" })
-    }
-    if (key === "down") {
+    if (key === "down" && !state?.running) {
       const next = Math.max((state?.histIdx ?? -1) - 1, -1)
-      updateState(tabId, { histIdx: next, input: next === -1 ? "" : state?.history?.[next] || "" })
+      updateState(tabId, { histIdx: next, input: next === -1 ? state?.historyDraft || "" : state?.history?.[next] || "" })
+      inputRef.current?.focus()
+      return
     }
+    if (socket) socket.sendInput(sequences[key])
     if (key === "tab") inputRef.current?.focus()
   }
 
@@ -835,11 +839,11 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
   }
 
   const placeholders: Record<TermType, string> = {
-    shell: "Command or live program input · Enter sends · Shift+Enter adds a line",
+    shell: "Type a command · ↑↓ history · Tab completes",
     python: "print('hello')  • import math  • source only",
     nodejs: "console.log('hello')  • require('fs')  • source only",
     java: "class Main { public static void main(String[] args) { System.out.println(\"hello\"); } }",
-    ai: "Ask about the workspace · Enter sends · Shift+Enter adds a line",
+    ai: "Ask about the workspace · Enter sends",
   }
 
   const visibleLines = (() => {
@@ -1024,21 +1028,16 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         <span className="terminal-prompt-label" style={{ color: TERM_COLORS[activeType], fontSize: 11, whiteSpace: "nowrap", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>
           {promptLabels[activeType]}
         </span>
-        <textarea
+        <input
           ref={inputRef}
           className="terminal-input"
           value={activeState.input}
-          onChange={(e) => {
-            updateState(activeTab, { input: e.target.value })
-            e.currentTarget.style.height = "auto"
-            e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 180)}px`
-          }}
+          onChange={(e) => updateState(activeTab, { input: e.target.value, histIdx: -1 })}
           onKeyDown={(e) => handleKeyDown(e, activeTab)}
           placeholder={placeholders[activeType]}
           disabled={activeState.running}
           autoComplete="off"
           spellCheck={false}
-          rows={1}
           aria-label={activeType === "ai" ? "AI Terminal message" : "Terminal command or program input"}
         />
         <button

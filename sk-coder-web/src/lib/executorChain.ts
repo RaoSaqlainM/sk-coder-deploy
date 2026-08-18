@@ -81,10 +81,13 @@ async function tryWandbox(language: string, code: string, stdin = ""): Promise<E
     const matches = compilers.filter((item) => config.wandboxPrefixes.some((prefix) => item.name.startsWith(prefix)) && (!config.compilerFilter || config.compilerFilter(item.name)))
     const compiler = matches.find((item) => !item.name.includes("head")) ?? matches[0]
     if (!compiler) return null
+    const source = language === "java"
+      ? code.replace(/\bpublic\s+(?:final\s+)?class\s+([A-Za-z_$][\w$]*)/, "class $1")
+      : code
     const response = await fetch(WANDBOX_RUN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ compiler: compiler.name, code, filename: config.filename, stdin }),
+      body: JSON.stringify({ compiler: compiler.name, code: source, filename: config.filename, stdin }),
       signal: AbortSignal.timeout(35000),
     })
     if (!response.ok) return null

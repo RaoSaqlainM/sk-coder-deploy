@@ -103,3 +103,11 @@
 - [x] Audit the GitHub integration boundary and implement or document separate, explicit flows for fine-grained token repository import/export, AI-assisted workspace changes after approval, and GitHub Codespaces handoff.
 - [x] Strengthen SK Coder AI workspace context and prompts so it can inspect supplied browser-workspace content, propose bounded file changes and commands, and execute only approved operations without claiming full Copilot or Codespaces access when unavailable.
 - [x] Produce an updated, capability-accurate language and project support matrix that distinguishes browser preview, source-only execution, live Oracle terminal execution, generated artifacts, and unavailable GUI or emulator workloads.
+- [x] Build clearly discoverable standalone public Privacy, Terms, and User Guide pages with navigation outside the IDE and verify they are reachable without relying on hidden footer links.
+- [x] Replace the terminal’s visible multi-line composer styling with a compact real-terminal command line while preserving native copy, paste, selection, touch input, and explicit multi-line program-input support in Result Center.
+- [x] Repair command-history navigation so Up and Down move through prior commands only when the terminal command line is empty or in single-line command mode, without trapping normal text editing keys.
+- [x] Audit and correct runnable-file mapping so every presently supported language shows Run only for source files with an available execution route, including Java when the configured runtime advertises it.
+- [x] Hide the top-bar Run control while Terminal, Files, AI, APK, GitHub, or public pages are active; show it only for an editable runnable file in the Editor context.
+- [x] Make the in-app GitHub connection entry point discoverable and explain separate user-authorized repository import, push, and GitHub Codespaces handoff flows without embedding a shared connector credential.
+- [x] Add capability-aware image preview for imported or created image files while retaining text editing and normal file actions for unsupported binary types.
+- [x] Perform a complete regression pass across the seven IDE tabs, public pages, terminal history controls, supported runnable language actions, GitHub entry state, archive extraction, and image preview.

@@ -1,50 +1,47 @@
+import { useLocation } from "wouter"
 import { useIDEStore } from "@/store/ideStore"
 import logoIcon from "@/assets/logo-icon.png"
 import { buildPreview } from "@/lib/previewBuilder"
 import { unifiedExecute, getFileExtension } from "@/lib/unifiedExecutor"
+import { getFileCapability } from "@/lib/projectCapabilities"
 import { toast } from "sonner"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 
 export default function TopBar() {
   const {
-    isRunning, setIsRunning, fileTree, activeTabId,
+    isRunning, setIsRunning, fileTree, activePanel, sidebarOpen,
     setActivePanel, setShowSettings, getActiveFile,
     setPreviewContent, setErrors, setPreviewResult,
   } = useIDEStore()
-
+  const [, navigate] = useLocation()
   const activeFile = getActiveFile()
+  const fileCapability = activeFile ? getFileCapability(activeFile) : "none"
+  const showRunControl = activePanel === "editor" && !sidebarOpen && Boolean(activeFile) && fileCapability !== "none"
 
   async function handleRun() {
     if (isRunning) {
       setIsRunning(false)
       return
     }
-
-    if (!activeFile) {
-      toast.error("Open a file first")
+    if (!activeFile || fileCapability === "none") {
+      toast.error("Open a runnable file in Editor first")
       return
     }
-
     const ext = getFileExtension(activeFile.name)
     const code = activeFile.content || ""
-
-    if (["html", "htm"].includes(ext)) {
-      const html = buildPreview(fileTree, activeFile.path)
+    if (fileCapability === "preview") {
       setPreviewResult(null)
-      setPreviewContent(html)
+      setPreviewContent(buildPreview(fileTree, activeFile.path))
       setActivePanel("preview")
       toast.success("Preview ready")
       return
     }
-
     setActivePanel("preview")
     setErrors([])
     setIsRunning(true)
     setPreviewResult(null)
-
     try {
       const result = await unifiedExecute(ext, code)
-
       if (!result) {
         setPreviewResult({
           stdout: "",
@@ -55,12 +52,10 @@ export default function TopBar() {
         })
         return
       }
-
       if (result.stderr) {
         const errors = parseErrors(result.stderr, activeFile.name)
         if (errors.length) setErrors(errors)
       }
-
       setPreviewResult({
         stdout: result.stdout,
         stderr: result.stderr,
@@ -74,53 +69,29 @@ export default function TopBar() {
     }
   }
 
-  const ext = activeFile?.name.split(".").pop()?.toLowerCase() || ""
-  const previewable = ["html", "htm", "css", "js", "jsx", "ts", "tsx"].includes(ext)
-  const runLabel = previewable ? "Preview" : "Run"
+  const runLabel = fileCapability === "preview" ? "Preview" : "Run"
 
   return (
     <div className="ide-topbar">
       <div className="topbar-logo">
         <img className="topbar-logo-image" src={logoIcon} alt="SK Coder logo" />
-        <div className="topbar-brand-stack">
-          <span>SK Coder</span>
-        </div>
+        <div className="topbar-brand-stack"><span>SK Coder</span></div>
       </div>
 
-      {activeFile && (
-        <>
-          <div className="topbar-divider" />
-          <span className="topbar-breadcrumb">
-            {activeFile.name}
-          </span>
-        </>
-      )}
+      {activeFile && <><div className="topbar-divider" /><span className="topbar-breadcrumb">{activeFile.name}</span></>}
 
       <div className="topbar-actions">
-        <button
-          className={`topbar-run-btn${isRunning ? " running" : ""}${!activeFile && !isRunning ? " disabled" : ""}`}
-          onClick={handleRun}
-          title={isRunning ? "Stop execution" : activeFile ? `${runLabel} ${activeFile.name}` : "Open a file to run"}
-          style={{ opacity: !activeFile && !isRunning ? 0.5 : 1 }}
-        >
-          {isRunning ? (
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
-              <rect x="2" y="2" width="3" height="8" rx="1"/>
-              <rect x="7" y="2" width="3" height="8" rx="1"/>
-            </svg>
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
-              <polygon points="2,1 11,6 2,11"/>
-            </svg>
-          )}
-          {isRunning ? "Stop" : runLabel}
+        {showRunControl && (
+          <button className={`topbar-run-btn${isRunning ? " running" : ""}`} onClick={handleRun} title={isRunning ? "Stop execution" : `${runLabel} ${activeFile?.name}`}>
+            {isRunning ? <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> : <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 11,6 2,11"/></svg>}
+            {isRunning ? "Stop" : runLabel}
+          </button>
+        )}
+        <button className="btn-icon" onClick={() => navigate("/guide")} title="Open User Guide, Privacy and Terms">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c-.58 1.04-1.93 1.42-2.46 2.5-.2.39-.27.83-.27 1.25"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
-
         <button className="btn-icon" onClick={() => setShowSettings(true)} title="Settings">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
     </div>

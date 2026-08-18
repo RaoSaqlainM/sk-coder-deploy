@@ -38,6 +38,16 @@ ${js}
 export function buildPreview(fileTree: FileNode[], activePath?: string): string {
   const files = flattenFiles(fileTree)
 
+  if (activePath) {
+    const imageNode = files.get(activePath)
+    const imageSource = imageNode?.assetData
+    const imageExtension = imageNode?.name.split(".").pop()?.toLowerCase() || ""
+    if (imageNode?.type === "file" && imageSource && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(imageExtension)) {
+      const safeName = imageNode.name.replace(/[&<>"']/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value] || value))
+      return buildInlineHtml(`<main><img src="${imageSource}" alt="${safeName}"/><p>${safeName}</p></main>`, "body{margin:0;min-height:100vh;background:#0d1117;color:#c9d1d9;font:13px system-ui;display:grid;place-items:center}main{display:grid;gap:12px;justify-items:center;padding:24px;box-sizing:border-box;width:100%;height:100vh}img{max-width:100%;max-height:calc(100vh - 74px);object-fit:contain;border-radius:8px;box-shadow:0 10px 32px rgba(0,0,0,.38)}p{margin:0;color:#8b949e}", "")
+    }
+  }
+
   const htmlFile = activePath
     ? (files.get(activePath)?.language === "html" ? files.get(activePath) : null)
     : findFirst(files, "html")

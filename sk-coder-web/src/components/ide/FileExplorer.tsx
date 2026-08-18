@@ -4,6 +4,7 @@ import { useIDEStore } from "@/store/ideStore"
 import { importFromArchive, importFromFiles, isZipCompatibleArchive, exportToZip, downloadBlob } from "@/lib/importProject"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
+import { isImagePreviewFile } from "@/lib/projectCapabilities"
 
 const EXT_COLORS: Record<string, string> = {
   html: "#e34c26", htm: "#e34c26", css: "#264de4", scss: "#cc6699", sass: "#cc6699",
@@ -138,7 +139,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
       toggleFolder(node.path)
     } else {
       openTab(node)
-      setActivePanel("editor")
+      setActivePanel(isImagePreviewFile(node) ? "preview" : "editor")
       setSidebarOpen(false)
     }
   }

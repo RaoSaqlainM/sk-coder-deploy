@@ -13,6 +13,7 @@ const SOURCE_EXTENSIONS = new Set([
 ])
 
 const HTML_EXTENSIONS = new Set(["html", "htm"])
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"])
 
 export function extensionFor(name: string) {
   const last = name.lastIndexOf(".")
@@ -22,8 +23,12 @@ export function extensionFor(name: string) {
 export function getFileCapability(node: FileNode): FileCapability {
   if (node.type !== "file") return "none"
   const extension = extensionFor(node.name)
-  if (HTML_EXTENSIONS.has(extension)) return "preview"
+  if (HTML_EXTENSIONS.has(extension) || IMAGE_EXTENSIONS.has(extension)) return "preview"
   return SOURCE_EXTENSIONS.has(extension) ? "run" : "none"
+}
+
+export function isImagePreviewFile(node: FileNode): boolean {
+  return node.type === "file" && IMAGE_EXTENSIONS.has(extensionFor(node.name))
 }
 
 function namesInFolder(folder: FileNode) {
