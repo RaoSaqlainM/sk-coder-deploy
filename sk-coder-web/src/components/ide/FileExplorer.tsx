@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo, memo } from "react"
 import { MoreVertical } from "lucide-react"
 import { useIDEStore } from "@/store/ideStore"
-import { importFromZip, importFromFiles } from "@/lib/importProject"
+import { importFromZip, importFromFiles, exportToZip, downloadBlob } from "@/lib/importProject"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
 
@@ -93,16 +93,47 @@ function FileIcon({ node, expanded }: { node: FileNode; expanded?: boolean }) {
 
 type FileNodeProps = { node: FileNode; depth: number; activePath: string | undefined }
 
+function selectedNodes(nodes: FileNode[], paths: Set<string>): FileNode[] {
+  const result: FileNode[] = []
+  function walk(items: FileNode[]) {
+    for (const item of items) {
+      if (paths.has(item.path)) result.push(item)
+      if (item.children) walk(item.children)
+    }
+  }
+  walk(nodes)
+  return result
+}
+
 function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
   const {
     openTab, expandedFolders, toggleFolder, setContextMenu,
     renameNodeId, setRenameNodeId, renameNode, moveNode, setDragOver, dragOverId,
-    setActivePanel, setSidebarOpen,
+    setActivePanel, setSidebarOpen, selectedPaths, selectionMode, batchOperation,
+    setSelectionMode, toggleSelectedPath, moveNodes, copyNodes,
   } = useIDEStore()
   const [renameValue, setRenameValue] = useState(node.name)
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const expanded = expandedFolders.has(node.path)
 
-  function handleClick() {
+  function clearLongPress() {
+    if (longPressRef.current) clearTimeout(longPressRef.current)
+    longPressRef.current = null
+  }
+
+  function handleClick(event: React.MouseEvent) {
+    if (batchOperation && node.type === "folder") {
+      const paths = Array.from(selectedPaths)
+      const completed = batchOperation === "move" ? moveNodes(paths, node.path) : copyNodes(paths, node.path)
+      if (completed) toast.success(`${batchOperation === "move" ? "Moved" : "Copied"} ${paths.length} item${paths.length === 1 ? "" : "s"}`)
+      else toast.error("Choose a different destination folder")
+      return
+    }
+    if (selectionMode || event.ctrlKey || event.metaKey) {
+      setSelectionMode(true)
+      toggleSelectedPath(node.path)
+      return
+    }
     if (node.type === "folder") {
       toggleFolder(node.path)
     } else {
@@ -110,6 +141,16 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
       setActivePanel("editor")
       setSidebarOpen(false)
     }
+  }
+
+  function handlePointerDown(event: React.PointerEvent) {
+    if (event.pointerType === "mouse") return
+    clearLongPress()
+    longPressRef.current = setTimeout(() => {
+      setSelectionMode(true)
+      if (!selectedPaths.has(node.path)) toggleSelectedPath(node.path)
+      toast.info("Selection mode enabled")
+    }, 550)
   }
 
   function handleContextMenu(e: React.MouseEvent) {
@@ -155,11 +196,15 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
   return (
     <>
       <div
-        className={`file-node ${isActive ? "active" : ""} ${isDragOver ? "drag-over" : ""}`}
+        className={`file-node ${isActive ? "active" : ""} ${isDragOver ? "drag-over" : ""} ${selectedPaths.has(node.path) ? "selected" : ""} ${batchOperation && node.type === "folder" ? "batch-target" : ""}`}
         style={{ paddingLeft: `${0.4 + depth * 1}rem` }}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        draggable
+        onPointerDown={handlePointerDown}
+        onPointerUp={clearLongPress}
+        onPointerCancel={clearLongPress}
+        onPointerLeave={clearLongPress}
+        draggable={!selectionMode}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(null)}
@@ -216,7 +261,10 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
 const FileNodeItemMemo = memo(FileNodeItem)
 
 export default function FileExplorer() {
-  const { fileTree, setNewItem, importFiles, getActiveFile } = useIDEStore()
+  const {
+    fileTree, setNewItem, importFiles, getActiveFile, selectionMode, selectedPaths,
+    batchOperation, setSelectionMode, clearSelectedPaths, setBatchOperation, deleteNodes,
+  } = useIDEStore()
   const importInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [search, setSearch] = useState("")
@@ -264,16 +312,43 @@ export default function FileExplorer() {
 
   const displayTree = search ? filterTree(fileTree, search) : fileTree
 
+  async function handleBatchDownload() {
+    const nodes = selectedNodes(fileTree, selectedPaths)
+    if (!nodes.length) return
+    try {
+      const blob = await exportToZip(nodes)
+      downloadBlob(blob, nodes.length === 1 ? `${nodes[0].name}.zip` : "sk-coder-selection.zip")
+      toast.success(`Downloaded ${nodes.length} selected item${nodes.length === 1 ? "" : "s"}`)
+    } catch {
+      toast.error("Could not create the download")
+    }
+  }
+
+  function handleBatchDelete() {
+    const paths = Array.from(selectedPaths)
+    if (!paths.length) return
+    if (!confirm(`Delete ${paths.length} selected item${paths.length === 1 ? "" : "s"}?`)) return
+    deleteNodes(paths)
+    toast.success(`Deleted ${paths.length} item${paths.length === 1 ? "" : "s"}`)
+  }
+
   return (
     <div
       className="file-explorer"
-      onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+      onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes("Files")) return
+        e.preventDefault()
+        setDragActive(true)
+      }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
     >
       <div className="file-explorer-header">
         <span>Explorer</span>
         <div className="file-explorer-actions">
+          <button className={`file-explorer-action-btn ${selectionMode ? "active" : ""}`} onClick={() => selectionMode ? clearSelectedPaths() : setSelectionMode(true)} title={selectionMode ? "Cancel selection" : "Select files and folders"} aria-pressed={selectionMode}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="m15 17 2 2 4-5"/></svg>
+          </button>
           <button className="file-explorer-action-btn" onClick={() => setNewItem(null, "file")} title="New File">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -295,6 +370,28 @@ export default function FileExplorer() {
           </button>
         </div>
       </div>
+
+      {selectionMode && (
+        <div className="file-batch-bar">
+          <div className="file-batch-summary">
+            <strong>{selectedPaths.size}</strong> selected
+            {batchOperation && <span>Choose a destination folder</span>}
+          </div>
+          <div className="file-batch-actions">
+            {batchOperation ? (
+              <button className="btn btn-secondary" onClick={() => setBatchOperation(null)}>Cancel move</button>
+            ) : (
+              <>
+                <button className="btn btn-secondary" disabled={selectedPaths.size === 0} onClick={() => setBatchOperation("copy")}>Copy</button>
+                <button className="btn btn-secondary" disabled={selectedPaths.size === 0} onClick={() => setBatchOperation("move")}>Move</button>
+                <button className="btn btn-secondary" disabled={selectedPaths.size === 0} onClick={handleBatchDownload}>Download</button>
+                <button className="btn btn-danger" disabled={selectedPaths.size === 0} onClick={handleBatchDelete}>Delete</button>
+              </>
+            )}
+            <button className="btn btn-ghost" onClick={clearSelectedPaths}>Done</button>
+          </div>
+        </div>
+      )}
 
       <div className="file-explorer-search">
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search files..." style={{ width: "100%" }} />

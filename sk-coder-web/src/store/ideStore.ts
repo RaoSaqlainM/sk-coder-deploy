@@ -196,6 +196,9 @@ type IDEState = {
   dragOverId: string | null
   terminalBridgeCmd: { cmd: string; cmds?: string[]; targetTab?: string; targetType?: string } | null
   errors: ErrorEntry[]
+  selectedPaths: Set<string>
+  selectionMode: boolean
+  batchOperation: "copy" | "move" | null
 }
 
 type IDEActions = {
@@ -205,6 +208,13 @@ type IDEActions = {
   openInTerminal: (path: string, isFolder: boolean, termType?: string) => void
   openFileInTerminal: (filePath: string, engine: string) => void
   setErrors: (errors: ErrorEntry[]) => void
+  setSelectionMode: (enabled: boolean) => void
+  toggleSelectedPath: (path: string) => void
+  clearSelectedPaths: () => void
+  setBatchOperation: (operation: "copy" | "move" | null) => void
+  deleteNodes: (paths: string[]) => void
+  moveNodes: (paths: string[], toFolderPath: string) => boolean
+  copyNodes: (paths: string[], toFolderPath: string) => boolean
   setFileTree: (tree: FileNode[]) => void
   addFile: (parentPath: string, name: string, type: "file" | "folder", content?: string) => void
   deleteNode: (path: string) => void
@@ -307,6 +317,45 @@ function updateContentAtPath(nodes: FileNode[], path: string, content: string): 
   })
 }
 
+function compactPaths(paths: string[]): string[] {
+  const unique = Array.from(new Set(paths)).sort((a, b) => a.length - b.length)
+  return unique.filter((path) => !unique.some((parent) => parent !== path && path.startsWith(parent + "/")))
+}
+
+function rebaseNode(node: FileNode, newPath: string, freshIds: boolean): FileNode {
+  return {
+    ...node,
+    id: freshIds ? generateId() : node.id,
+    path: newPath,
+    children: node.children?.map((child) => rebaseNode(child, `${newPath}/${child.name}`, freshIds)),
+  }
+}
+
+function collectFilePaths(node: FileNode): string[] {
+  if (node.type === "file") return [node.path]
+  return (node.children || []).flatMap(collectFilePaths)
+}
+
+function uniqueChildPath(nodes: FileNode[], folderPath: string, name: string): string {
+  const paths = new Set<string>()
+  function collect(items: FileNode[]) {
+    for (const item of items) {
+      paths.add(item.path)
+      if (item.children) collect(item.children)
+    }
+  }
+  collect(nodes)
+  const prefix = folderPath === "/" ? "" : folderPath
+  const base = `${prefix}/${name}`
+  if (!paths.has(base)) return base
+  const dot = name.lastIndexOf(".")
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const extension = dot > 0 ? name.slice(dot) : ""
+  let counter = 2
+  while (paths.has(`${prefix}/${stem}-copy-${counter}${extension}`)) counter += 1
+  return `${prefix}/${stem}-copy-${counter}${extension}`
+}
+
 const INIT_LINES: TerminalLine[] = [
   { id: "i1", type: "info", content: "SK Coder Python Terminal — type Python code and press Enter.", timestamp: Date.now() },
   { id: "i2", type: "info", content: "Run any file via the ▶ Run button in the top bar.", timestamp: Date.now() },
@@ -342,6 +391,9 @@ export const useIDEStore = create<IDEState & IDEActions>()(
       dragOverId: null,
       terminalBridgeCmd: null,
       errors: [],
+      selectedPaths: new Set(),
+      selectionMode: false,
+      batchOperation: null,
 
       buildFlatFiles: () => {
         const map = new Map<string, FileNode>()
@@ -407,6 +459,25 @@ export const useIDEStore = create<IDEState & IDEActions>()(
         void get().saveWorkspaceToBackend()
       },
 
+      deleteNodes: (paths) => {
+        const targets = compactPaths(paths)
+        if (!targets.length) return
+        const currentMap = new Map<string, FileNode>()
+        flattenTree(get().fileTree, currentMap)
+        targets.forEach((path) => {
+          const node = currentMap.get(path)
+          if (node) deleteAllFileContents([node])
+        })
+        let tree = get().fileTree
+        targets.forEach((path) => { tree = deleteNodeAtPath(tree, path) })
+        const flatFiles = new Map<string, FileNode>()
+        flattenTree(tree, flatFiles)
+        const openTabs = get().openTabs.filter((tab) => !targets.some((path) => tab.path === path || tab.path.startsWith(path + "/")))
+        const activeTabId = openTabs.some((tab) => tab.id === get().activeTabId) ? get().activeTabId : openTabs[openTabs.length - 1]?.id || null
+        set({ fileTree: tree, flatFiles, openTabs, activeTabId, selectedPaths: new Set(), selectionMode: false, batchOperation: null })
+        void get().saveWorkspaceToBackend()
+      },
+
       renameNode: (path, newName) => {
         const parentPath = path.substring(0, path.lastIndexOf("/"))
         const newPath = `${parentPath}/${newName}`
@@ -435,20 +506,56 @@ export const useIDEStore = create<IDEState & IDEActions>()(
         void get().saveWorkspaceToBackend()
       },
 
-      moveNode: (fromPath, toFolderPath) => {
+      moveNodes: (paths, toFolderPath) => {
+        const targets = compactPaths(paths)
+        if (!targets.length) return false
         const map = new Map<string, FileNode>()
         flattenTree(get().fileTree, map)
-        const node = map.get(fromPath)
-        if (!node) return
-        const tree1 = deleteNodeAtPath(get().fileTree, fromPath)
-        const newPath = `${toFolderPath}/${node.name}`
-        if (node.type === "file") renameFileContent(fromPath, newPath)
-        const movedNode = { ...node, path: newPath }
-        const tree2 = insertNodeAtPath(tree1, toFolderPath, movedNode)
-        const newMap = new Map<string, FileNode>()
-        flattenTree(tree2, newMap)
-        set({ fileTree: tree2, flatFiles: newMap })
+        const nodes = targets.map((path) => map.get(path)).filter((node): node is FileNode => Boolean(node))
+        if (!nodes.length || nodes.some((node) => toFolderPath === node.path || toFolderPath.startsWith(node.path + "/"))) return false
+        let tree = get().fileTree
+        nodes.forEach((node) => { tree = deleteNodeAtPath(tree, node.path) })
+        const replacements = new Map<string, string>()
+        nodes.forEach((node) => {
+          const nextPath = uniqueChildPath(tree, toFolderPath, node.name)
+          collectFilePaths(node).forEach((oldPath) => replacements.set(oldPath, nextPath + oldPath.slice(node.path.length)))
+          tree = insertNodeAtPath(tree, toFolderPath, rebaseNode(node, nextPath, false))
+        })
+        replacements.forEach((nextPath, oldPath) => renameFileContent(oldPath, nextPath))
+        const flatFiles = new Map<string, FileNode>()
+        flattenTree(tree, flatFiles)
+        const openTabs = get().openTabs.map((tab) => {
+          const path = replacements.get(tab.path)
+          return path ? { ...tab, path, name: path.split("/").pop() || tab.name } : tab
+        })
+        set({ fileTree: tree, flatFiles, openTabs, selectedPaths: new Set(), selectionMode: false, batchOperation: null })
         void get().saveWorkspaceToBackend()
+        return true
+      },
+
+      moveNode: (fromPath, toFolderPath) => {
+        get().moveNodes([fromPath], toFolderPath)
+      },
+
+      copyNodes: (paths, toFolderPath) => {
+        const targets = compactPaths(paths)
+        if (!targets.length) return false
+        const map = new Map<string, FileNode>()
+        flattenTree(get().fileTree, map)
+        const nodes = targets.map((path) => map.get(path)).filter((node): node is FileNode => Boolean(node))
+        if (!nodes.length || nodes.some((node) => toFolderPath === node.path || toFolderPath.startsWith(node.path + "/"))) return false
+        let tree = get().fileTree
+        nodes.forEach((node) => {
+          const nextPath = uniqueChildPath(tree, toFolderPath, node.name)
+          const copy = rebaseNode(node, nextPath, true)
+          saveAllFileContents([copy])
+          tree = insertNodeAtPath(tree, toFolderPath, copy)
+        })
+        const flatFiles = new Map<string, FileNode>()
+        flattenTree(tree, flatFiles)
+        set({ fileTree: tree, flatFiles, selectedPaths: new Set(), selectionMode: false, batchOperation: null })
+        void get().saveWorkspaceToBackend()
+        return true
       },
 
       openTab: (node) => {
@@ -607,6 +714,15 @@ export const useIDEStore = create<IDEState & IDEActions>()(
       },
 
       setErrors: (errors) => set({ errors }),
+      setSelectionMode: (enabled) => set({ selectionMode: enabled, selectedPaths: enabled ? get().selectedPaths : new Set(), batchOperation: null }),
+      toggleSelectedPath: (path) => set((state) => {
+        const selectedPaths = new Set(state.selectedPaths)
+        if (selectedPaths.has(path)) selectedPaths.delete(path)
+        else selectedPaths.add(path)
+        return { selectedPaths, selectionMode: selectedPaths.size > 0 }
+      }),
+      clearSelectedPaths: () => set({ selectedPaths: new Set(), selectionMode: false, batchOperation: null }),
+      setBatchOperation: (operation) => set({ batchOperation: operation }),
     }),
     {
       name: "sk-coder-ide-v3",

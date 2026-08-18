@@ -3,7 +3,7 @@ import { useIDEStore } from "@/store/ideStore"
 import {
   validateGitHubToken, listCodespaces, startCodespace, stopCodespace,
   deleteCodespace, getCodespaceWebUrl, listUserRepos, createCodespace,
-  createRepo, renameRepo, pushFilesToRepo,
+  createRepo, renameRepo, pushFilesToRepo, importRepositoryToTree,
 } from "@/lib/githubClient"
 import type { Codespace } from "@/types/ide"
 import { toast } from "sonner"
@@ -11,7 +11,7 @@ import { toast } from "sonner"
 type Tab = "codespaces" | "repositories" | "push"
 
 export default function CloudShell() {
-  const { settings, updateGithubSettings, setShowSettings, setSettingsTab, fileTree } = useIDEStore()
+  const { settings, updateGithubSettings, setShowSettings, setSettingsTab, fileTree, importFiles, setActivePanel, setSidebarOpen } = useIDEStore()
   const [tab, setTab] = useState<Tab>("codespaces")
   const [codespaces, setCodespaces] = useState<Codespace[]>([])
   const [repos, setRepos] = useState<{ id: number; full_name: string; name: string; default_branch: string; private: boolean; html_url: string }[]>([])
@@ -35,6 +35,7 @@ export default function CloudShell() {
   const [pushing, setPushing] = useState(false)
   const [pushProgress, setPushProgress] = useState({ done: 0, total: 0 })
   const [commitMessage, setCommitMessage] = useState("Update via SK Coder")
+  const [importingRepo, setImportingRepo] = useState<string | null>(null)
 
   const token = settings.github.token
 
@@ -162,6 +163,28 @@ export default function CloudShell() {
     }
   }
 
+  async function handleImportRepo(repo: { full_name: string; name: string; default_branch: string }) {
+    setImportingRepo(repo.full_name)
+    try {
+      const existingNames = new Set(fileTree.map((node) => node.name))
+      let rootName = repo.name
+      let counter = 2
+      while (existingNames.has(rootName)) {
+        rootName = `${repo.name}-import-${counter}`
+        counter += 1
+      }
+      const result = await importRepositoryToTree(token, repo.full_name, repo.default_branch || "main", rootName)
+      importFiles([result.root])
+      setActivePanel("files")
+      setSidebarOpen(true)
+      toast.success(`Imported ${result.imported} file${result.imported === 1 ? "" : "s"}${result.skipped ? ` · ${result.skipped} skipped` : ""}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Repository import failed")
+    } finally {
+      setImportingRepo(null)
+    }
+  }
+
   async function handlePush() {
     if (!pushRepo) { toast.error("Select a repository"); return }
     if (fileTree.length === 0) { toast.error("No files in your project to push"); return }
@@ -186,7 +209,7 @@ export default function CloudShell() {
       <div className="cloud-panel">
         <div className="cloud-header">
           <h3>GitHub</h3>
-          <p>Connect your GitHub account to use Codespaces and manage repositories</p>
+            <p>Connect selected repositories to import, export, and open a GitHub workspace</p>
         </div>
         <div className="cloud-body">
           <div className="panel-placeholder">
@@ -197,17 +220,17 @@ export default function CloudShell() {
             </div>
             <p style={{ fontWeight: 600, color: "var(--text-primary)" }}>GitHub Token Required</p>
             <p style={{ fontSize: 12, maxWidth: 280, textAlign: "center" }}>
-              Add a GitHub Personal Access Token with <code style={{ color: "var(--orange)", background: "var(--bg-elevated)", padding: "0 0.3em", borderRadius: 3 }}>repo</code> and <code style={{ color: "var(--orange)", background: "var(--bg-elevated)", padding: "0 0.3em", borderRadius: 3 }}>codespace</code> scopes.
+              Use a fine-grained token for only the repositories you choose. Grant Contents read to import, Contents write to push, and Codespaces access only when you use Codespaces.
             </p>
             <button className="btn btn-primary" style={{ marginTop: "0.75rem" }} onClick={() => { setSettingsTab("github"); setShowSettings(true) }}>
               Add GitHub Token
             </button>
             <a
-              href="https://github.com/settings/tokens/new?scopes=repo,codespace&description=SK-Coder-IDE"
+              href="https://github.com/settings/personal-access-tokens/new?name=SK-Coder&description=Selected+repository+access"
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize: 12, color: "var(--accent)", marginTop: "0.5rem" }}
             >
-              Create token on GitHub →
+              Create fine-grained token →
             </a>
           </div>
         </div>
@@ -403,6 +426,14 @@ export default function CloudShell() {
                   </div>
                 </div>
                 <div className="cloud-card-actions">
+                  <button
+                    className="btn btn-primary"
+                    style={{ fontSize: 11, padding: "0.2rem 0.55rem" }}
+                    onClick={() => handleImportRepo(repo)}
+                    disabled={importingRepo === repo.full_name}
+                  >
+                    {importingRepo === repo.full_name ? "Importing..." : "Import to Explorer"}
+                  </button>
                   <button
                     className="btn btn-secondary"
                     style={{ fontSize: 11, padding: "0.2rem 0.55rem" }}

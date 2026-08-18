@@ -171,6 +171,18 @@ export default function SettingsPanel() {
     }
   }
 
+  function handleClearApiKey() {
+    setKeyInput("")
+    updateAISettings({ apiKey: "", keyStatus: "none" })
+    toast.success("Your API key was removed from this browser")
+  }
+
+  function handleDisconnectGitHub() {
+    setTokenInput("")
+    updateGithubSettings({ token: "", username: "", codespaceActive: "" })
+    toast.success("GitHub was disconnected from this browser")
+  }
+
   const keyStatus = settings.ai.keyStatus
 
   return (
@@ -318,6 +330,10 @@ export default function SettingsPanel() {
                       {checking ? "Checking..." : "Connect"}
                     </button>
                   </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+                    <span className="settings-hint" style={{ margin: 0 }}>Stored only in this browser until you remove it.</span>
+                    {!!settings.ai.apiKey && <button className="btn btn-ghost" onClick={handleClearApiKey} style={{ fontSize: 11, padding: "0.2rem 0.45rem" }}>Remove key</button>}
+                  </div>
                 </div>
 
                 <div className="settings-section">
@@ -360,10 +376,12 @@ export default function SettingsPanel() {
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
                     <button className="btn btn-primary" onClick={handleValidateToken}>Connect GitHub</button>
+                    {!!settings.github.token && <button className="btn btn-ghost" onClick={handleDisconnectGitHub}>Disconnect</button>}
                     <a href="https://github.com/settings/personal-access-tokens/new?name=SK-Coder&description=Selected+repository+access" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
                       Create Token →
                     </a>
                   </div>
+                  <div className="settings-hint">Your token stays in this browser’s local workspace state. It is sent to GitHub only when you choose a GitHub action, and Disconnect removes it here.</div>
                 </div>
               </>
             )}

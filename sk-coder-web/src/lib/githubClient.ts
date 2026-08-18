@@ -156,6 +156,87 @@ export async function renameRepo(token: string, owner: string, repo: string, new
   }
 }
 
+type GitTreeEntry = { path: string; type: string; size?: number }
+
+const MAX_IMPORT_FILES = 200
+const MAX_IMPORT_FILE_BYTES = 512 * 1024
+const MAX_IMPORT_TOTAL_BYTES = 5 * 1024 * 1024
+const BINARY_EXTENSION = /\.(?:7z|apk|avi|bin|bmp|class|dll|dmg|exe|gif|gz|ico|jar|jpeg|jpg|mp3|mp4|otf|pdf|png|so|tar|ttf|wav|webm|woff2?|zip)$/i
+
+function makeImportId(path: string, index: number): string {
+  return `github-${Date.now().toString(36)}-${index}-${path.replace(/[^a-z0-9]/gi, "-").slice(-32)}`
+}
+
+function createFolder(name: string, path: string, index: number): FileNode {
+  return { id: makeImportId(path, index), name, type: "folder", path, children: [] }
+}
+
+export async function importRepositoryToTree(
+  token: string,
+  repoFullName: string,
+  branch: string,
+  rootName: string
+): Promise<{ root: FileNode; imported: number; skipped: number }> {
+  const [owner, repo] = repoFullName.split("/")
+  if (!token || !owner || !repo) throw new Error("Choose a repository first")
+  const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" }
+  const treeResponse = await fetch(`${GH_API}/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { headers })
+  if (!treeResponse.ok) throw new Error(treeResponse.status === 403 ? "Token cannot read this repository" : "Could not read the repository tree")
+  const treeData = await treeResponse.json() as { tree?: GitTreeEntry[]; truncated?: boolean }
+  if (treeData.truncated) throw new Error("Repository is too large to import safely. Import a smaller project or use Codespaces.")
+  const files = (treeData.tree || []).filter((entry) => entry.type === "blob" && !BINARY_EXTENSION.test(entry.path) && (entry.size || 0) <= MAX_IMPORT_FILE_BYTES)
+  const selected = files.slice(0, MAX_IMPORT_FILES)
+  const root = createFolder(rootName, `/${rootName}`, 0)
+  let imported = 0
+  let skipped = files.length - selected.length
+  let totalBytes = 0
+
+  for (const entry of selected) {
+    const declaredSize = entry.size || 0
+    if (totalBytes + declaredSize > MAX_IMPORT_TOTAL_BYTES) {
+      skipped += 1
+      continue
+    }
+    const contentResponse = await fetch(
+      `${GH_API}/repos/${owner}/${repo}/contents/${entry.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+      { headers: { ...headers, Accept: "application/vnd.github.raw+json" } }
+    )
+    if (!contentResponse.ok) {
+      skipped += 1
+      continue
+    }
+    const content = await contentResponse.text()
+    const parts = entry.path.split("/").filter(Boolean)
+    const fileName = parts.pop()
+    if (!fileName) {
+      skipped += 1
+      continue
+    }
+    let parent = root
+    let currentPath = root.path
+    parts.forEach((part, index) => {
+      currentPath = `${currentPath}/${part}`
+      let child = parent.children?.find((item) => item.type === "folder" && item.name === part)
+      if (!child) {
+        child = createFolder(part, currentPath, imported + index + 1)
+        parent.children = [...(parent.children || []), child]
+      }
+      parent = child
+    })
+    parent.children = [...(parent.children || []), {
+      id: makeImportId(entry.path, imported + 1),
+      name: fileName,
+      type: "file",
+      path: `${parent.path}/${fileName}`,
+      content,
+    }]
+    totalBytes += content.length
+    imported += 1
+  }
+  if (!imported) throw new Error("No supported text files were available to import")
+  return { root, imported, skipped }
+}
+
 export async function pushFilesToRepo(
   token: string,
   owner: string,

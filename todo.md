@@ -80,3 +80,10 @@
 - [x] Audit current SK Coder result, preview, terminal, diagnostics, artifact, and runtime behavior against a universal matrix of source, web, service, document, media, archive, native GUI, and mobile-app workloads.
 - [x] Define user-visible verification and interaction paths for every supported workload category so users can tell whether a run succeeded, failed, produced files, opened a preview, or requires an external environment.
 - [x] Plan safe incremental upgrades that improve broad result coverage now and reserve remote desktop, native emulation, and real-device testing for separately secured and resourced future capabilities.
+- [x] Audit and clarify the Result Center’s Program input, Interactive terminal, and run-details controls so each result type has an understandable user action.
+- [x] Audit the existing GitHub panel and settings flow for secure repository listing, import to Explorer, create repository, and explicit push/export capabilities using fine-grained user tokens.
+- [x] Add multi-selection for files and folders with desktop modifier/right-click support and mobile long-press mode, including clear selection state and safe batch delete, copy, move, and download actions.
+- [ ] Add safe folder movement interactions that use a chosen destination instead of accidental drag-and-drop on mobile, while retaining desktop drag-and-drop only when it can be verified.
+- [x] Audit stored settings and API-key behavior, then make the UI clearly explain what is stored locally, what is only sent after a user action, and how to remove it.
+- [x] Extend the detailed user guide with GitHub import/export, multi-selection, file movement, result interaction, and realistic runtime guidance.
+- [x] Re-test the frontend and API server together, distinguishing verified browser behavior from live-workspace behavior that still requires deployment infrastructure.

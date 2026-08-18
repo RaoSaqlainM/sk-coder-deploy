@@ -23,6 +23,13 @@ export default function GuidePage() {
         <p>Use <strong>Files</strong> to import, create, rename, move, download, and open projects. Opening a file moves you to Editor. The three-dot file menu shows only actions that make sense for the selected file or folder.</p>
         <p>The top action always uses the file currently open in Editor. It does not run an earlier file in the background. After a run, the Result Center shows the file name, status, output, problems, files produced, and run details together.</p>
 
+        <h2>Selecting, moving, and exporting files</h2>
+        <p>Choose the <strong>Select</strong> button in Files to enter selection mode. On a desktop, hold Ctrl or Command while choosing files or folders. On a phone, press and hold a file or folder to begin selection mode.</p>
+        <Step number={1}>Select one or more files or folders. A toolbar shows the current count.</Step>
+        <Step number={2}>Choose <strong>Copy</strong> or <strong>Move</strong>, then choose the destination folder from the Explorer. This avoids accidental moves on touch screens.</Step>
+        <Step number={3}>Choose <strong>Download</strong> to create a ZIP of the selected items, or <strong>Delete</strong> to remove them after confirmation.</Step>
+        <p>Use <strong>Done</strong> to leave selection mode. Selection mode does not open or change a file until you choose a batch action.</p>
+
         <h2>Run, Preview, and Results</h2>
         <table>
           <thead><tr><th>What you open</th><th>What SK Coder gives you</th></tr></thead>
@@ -83,6 +90,8 @@ export default function GuidePage() {
         <Step number={2}>Choose the correct owner and only the repositories you want to connect.</Step>
         <Step number={3}>Grant <strong>Contents: Read</strong> for browsing, or <strong>Contents: Write</strong> only when you need to push changes.</Step>
         <Step number={4}>Paste the token into <strong>Settings → GitHub</strong>. Never put a token in a source file, chat message, or public repository.</Step>
+        <p>In <strong>GitHub → Repositories</strong>, choose <strong>Import to Explorer</strong> to add a selected repository as a new folder without replacing your existing files. SK Coder imports supported text files within safe size limits; use Codespaces for large repositories, binaries, or full development environments.</p>
+        <p>Use <strong>Push Files</strong> to choose a repository, enter a commit message, and explicitly commit the current Explorer files. Repository creation, import, and push happen only after you choose the relevant GitHub action. Settings shows how to disconnect and remove the saved local token.</p>
 
         <h2>APK and ZIP editor</h2>
         <p>The APK section is a file editor and repackaging tool for APK or ZIP archives. It can browse and edit supported extracted text files, then save a changed archive for download. It is not an Android emulator, Android Studio, a full decompiler, or a signing service.</p>

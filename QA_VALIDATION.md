@@ -36,6 +36,13 @@ This record captures the final verification performed against the repaired repos
 | Simplified folder actions | Premature Build Project and Run Project menu actions were removed; folders retain the requested Terminal and GitHub workspace entry points. | Typecheck verified. |
 | Public Help and policies | Help, Privacy, and Terms pages use user-facing language, explain supported result paths, and include separate new-tab public footer links. | Live browser and typecheck verified. |
 | AI privacy boundary | The user-key assistant prompt is limited to supplied user-workspace context, requires approved action proposals, and forbids disclosure of private product implementation. | Typecheck verified. |
+| GitHub entry point | The GitHub tab rendered the fine-grained token setup path without requiring a token. | Live browser verified. |
+| GitHub repository import | The repository panel now provides Import to Explorer using an explicit user token and a bounded text-file import path. | Frontend typecheck and release build passed; a live private-repository import requires a user token and was not performed. |
+| Explorer multi-selection | Mobile selection mode opened from the Explorer header, showed a selected-count toolbar, and enabled Copy, Move, Download, Delete, and Done only after an item was selected. Desktop right-click menus also expose Select alongside ordinary file actions. | Live browser verified at 500 px width. |
+| Safe batch movement | Batch copy and move use an explicit destination-folder selection path; internal Explorer moves no longer trigger the external import drop zone. | Frontend typecheck and release build passed. |
+| Local credential controls | Settings now explains browser-local key and token storage and provides explicit API-key removal and GitHub disconnect controls. | Frontend typecheck verified. |
+| Detailed user manual | Help now covers multi-selection, movement, downloads, GitHub import and push, fine-grained token permissions, Program input, Interactive terminal, and result limits. | Frontend typecheck verified. |
+| Restarted service health | The API server and Vite frontend were restarted and both local health requests completed. | Live request verified. |
 
 ## Verification details
 
@@ -44,6 +51,8 @@ The frontend production build completed with 1,755 transformed modules. The buil
 The connected browser completed a final responsive visual smoke check. At a 390 × 844 viewport, the terminal keyboard row and all seven bottom-navigation destinations remained reachable. The source-file menu exposed only the applicable run affordance; C++ execution opened the shared Console, exposed the pre-run input control, and the Runtime tab truthfully disclosed the active public fallback. The AI workspace remained visible with active-file context and an explicit configuration-required state rather than a fabricated response.
 
 The safe-upgrade browser check re-ran the C++ flow after the Result Center revision. The Console identified `probe.cpp`, showed a completed state, kept Program input collapsed until requested, and offered an explicit Interactive terminal route. The compact mobile layout retained both actions without covering the seven-tab navigation. The public Help and Privacy pages rendered independently of the IDE and used task-focused language with professional footer links. The frontend release build and backend typecheck and bundle build passed; Vite reported only its existing non-blocking JSZip and bundle-size optimization warnings.
+
+The current GitHub and Explorer upgrade was checked after restarting both local services. The mobile-width live Explorer showed the new Select control, then displayed the zero-selection toolbar and enabled Copy, Move, Download, and Delete after `probe.cpp` was selected without opening or changing the file. The test-only file created during an attempted automated stdin program edit was removed, restoring the original Explorer file set. The GitHub tab correctly showed its disconnected fine-grained token entry point. Repository import is intentionally not live-tested without a user-provided token because importing a private repository would access user data. The bounded import implementation and Settings credential-removal controls passed frontend typecheck and release build verification.
 
 ## Large-project lifecycle behavior
 

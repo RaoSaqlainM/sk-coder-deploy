@@ -63,6 +63,7 @@ export default function ContextMenu() {
     setNewItem, openTab, fileTree, setActivePanel, addTerminalLine,
     setTerminalInput, refreshPreview, setPreviewContent, clearTerminal,
     getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen,
+    setSelectionMode, toggleSelectedPath,
   } = useIDEStore()
   const ref = useRef<HTMLDivElement>(null)
   const [clipboardState, setClipboardState] = useState<{ path: string; mode: "copy" | "move" } | null>(null)
@@ -149,6 +150,14 @@ export default function ContextMenu() {
     setClipboardState({ path: node.path, mode: "move" })
     toast.success(`Move ready: ${node.name}`)
     setContextMenu(null)
+  }
+
+  function handleSelectNode() {
+    if (!node) return
+    setSelectionMode(true)
+    toggleSelectedPath(node.path)
+    setContextMenu(null)
+    toast.info("Selection mode enabled")
   }
 
   function handlePasteHere() {
@@ -344,6 +353,11 @@ export default function ContextMenu() {
       )}
 
       <div className="context-menu-divider" />
+
+      <div className="context-menu-item" onClick={handleSelectNode}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="m15 17 2 2 4-5"/></svg>
+        Select
+      </div>
 
       <div className="context-menu-item" onClick={handleCopyNode}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
