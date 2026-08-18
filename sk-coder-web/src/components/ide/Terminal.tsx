@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { execute, type ExecResponse } from "@/lib/executorChain"
-import { createTerminalWebSocket, getWorkspaceLifecycle, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner"
+import { createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner"
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient"
 import { parseErrors } from "@/components/ide/ErrorPanel"
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy"
@@ -42,6 +42,8 @@ type TabState = {
   cwd: string
   running: boolean
 }
+
+type WorkspaceConnectionState = "checking" | "connected" | "waiting" | "offline"
 
 function mkLine(type: TermLine["type"], content: string): TermLine {
   return { id: Math.random().toString(36).slice(2), type, content }
@@ -247,6 +249,7 @@ export default function MultiTerminal() {
   const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [aiReady, setAiReady] = useState(false)
   const [workspaceLifecycle, setWorkspaceLifecycle] = useState<WorkspaceLifecycle | null>(null)
+  const [workspaceConnection, setWorkspaceConnection] = useState<WorkspaceConnectionState>("checking")
   const addMenuRef = useRef<HTMLDivElement>(null)
   const addBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -284,6 +287,7 @@ export default function MultiTerminal() {
     const socket = createTerminalWebSocket({
       onReady: (sessionId) => {
         terminalErrorMessagesRef.current.delete(tabId)
+        setWorkspaceConnection("connected")
         workspaceSessionIdRef.current = sessionId
         localStorage.setItem("sk-coder-workspace-session-id", sessionId)
         addLine(tabId, "success", savedSessionId ? "Connected to shared isolated workspace session." : "Connected to isolated workspace session.")
@@ -301,8 +305,9 @@ export default function MultiTerminal() {
           return
         }
         const readableMessage = /isolated runtime service is not available/i.test(message)
-          ? "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready."
+          ? "Workspace session could not start."
           : message
+        setWorkspaceConnection(/isolated runtime service is not available|WebSocket connection failed/i.test(message) ? "waiting" : "offline")
         if (terminalErrorMessagesRef.current.has(`${tabId}:${readableMessage}`)) return
         terminalErrorMessagesRef.current.add(`${tabId}:${readableMessage}`)
         setTabStates((previous) => {
@@ -320,10 +325,17 @@ export default function MultiTerminal() {
     let disposed = false
     void isBackendAvailable().then((available) => {
       if (disposed || !available) {
-        if (!disposed) addLine("shell-1", "info", "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready.")
+        if (!disposed) setWorkspaceConnection("offline")
         return
       }
-      connectShell("shell-1")
+      void getWorkspaceRuntimeStatus().then((status) => {
+        if (disposed) return
+        if (!status.ready) {
+          setWorkspaceConnection("waiting")
+          return
+        }
+        connectShell("shell-1")
+      })
     })
     return () => {
       disposed = true
@@ -849,13 +861,12 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
   const visibleLines = (() => {
     let unavailableSeen = false
     return activeState.lines.reduce<TermLine[]>((lines, line) => {
-      if (!/isolated runtime service is not available|Oracle Docker workspace is unavailable/i.test(line.content)) {
+      if (!/isolated runtime service is not available|Oracle Docker workspace is unavailable|Live workspace is unavailable|Workspace session could not start/i.test(line.content)) {
         lines.push(line)
         return lines
       }
       if (unavailableSeen) return lines
       unavailableSeen = true
-      lines.push({ ...line, type: "info", content: "Live workspace is unavailable. SK Shell will activate when a workspace connection is ready." })
       return lines
     }, [])
   })()
@@ -961,10 +972,17 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         </div>
       </div>
 
+      {activeType === "shell" && workspaceConnection !== "connected" && (
+        <div className="terminal-workspace-notice" role="status">
+          {workspaceConnection === "checking" && "Checking SK Shell connection…"}
+          {workspaceConnection === "waiting" && "SK Shell is waiting for the workspace server. You can keep editing files."}
+          {workspaceConnection === "offline" && "SK Shell cannot reach the workspace server right now. You can keep editing files."}
+        </div>
+      )}
+
       <div
         className="terminal-output"
         ref={outputRef}
-        onClick={() => inputRef.current?.focus()}
         onScroll={(event) => {
           const target = event.currentTarget
           stickToOutputEndRef.current = target.scrollHeight - target.scrollTop - target.clientHeight < 28
@@ -1024,7 +1042,7 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
         </div>
       )}
 
-      <div className="terminal-input-row">
+      <form className="terminal-input-row" onSubmit={(event) => { event.preventDefault(); void handleSubmit(activeTab) }}>
         <span className="terminal-prompt-label" style={{ color: TERM_COLORS[activeType], fontSize: 11, whiteSpace: "nowrap", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>
           {promptLabels[activeType]}
         </span>
@@ -1041,14 +1059,16 @@ const DEFAULT_TAB_IDS = ["shell-1", "ai-1"]
           aria-label={activeType === "ai" ? "AI Terminal message" : "Terminal command or program input"}
         />
         <button
+          type="submit"
           className="btn btn-primary"
-          style={{ padding: "0.2rem 0.6rem", fontSize: 11, flexShrink: 0 }}
-          onClick={() => handleSubmit(activeTab)}
+          style={{ width: 30, padding: 0, fontSize: 15, justifyContent: "center", flexShrink: 0 }}
           disabled={activeState.running || !activeState.input.trim()}
+          title={activeType === "ai" ? "Ask SK-AI" : "Run command"}
+          aria-label={activeType === "ai" ? "Ask SK-AI" : "Run command"}
         >
-          {activeType === "ai" ? "Ask" : "Send"}
+          {activeType === "ai" ? "↑" : "↵"}
         </button>
-      </div>
+      </form>
 
     </div>
   )

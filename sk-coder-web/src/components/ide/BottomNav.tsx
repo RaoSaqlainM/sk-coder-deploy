@@ -78,16 +78,8 @@ export default function BottomNav() {
 
   function handleNav(id: ActivePanel) {
     if (id === "files") {
-      if (sidebarOpen) {
-        setSidebarOpen(false)
-        setActivePanel("editor")
-      } else if (activePanel === "files") {
-        setSidebarOpen(true)
-        setActivePanel("editor")
-      } else {
-        setSidebarOpen(false)
-        setActivePanel("files")
-      }
+      setSidebarOpen(false)
+      setActivePanel("files")
     } else {
       setSidebarOpen(false)
       setActivePanel(id)
@@ -99,7 +91,7 @@ export default function BottomNav() {
   return (
     <nav className="bottom-nav">
       {NAV_ITEMS.map((item) => {
-        const isActive = item.id === "files" ? activePanel === "files" || sidebarOpen : activePanel === item.id && !sidebarOpen
+        const isActive = item.id === "files" ? activePanel === "files" : activePanel === item.id && !sidebarOpen
         return (
           <button
             key={item.id}

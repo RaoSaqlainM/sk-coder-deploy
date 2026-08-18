@@ -111,3 +111,10 @@
 - [x] Make the in-app GitHub connection entry point discoverable and explain separate user-authorized repository import, push, and GitHub Codespaces handoff flows without embedding a shared connector credential.
 - [x] Add capability-aware image preview for imported or created image files while retaining text editing and normal file actions for unsupported binary types.
 - [x] Perform a complete regression pass across the seven IDE tabs, public pages, terminal history controls, supported runnable language actions, GitHub entry state, archive extraction, and image preview.
+- [x] Audit and repair frontend workspace-session connection startup and status presentation so SK Shell shows one useful connection state and activates when a reachable configured backend creates a session.
+- [x] Rebuild the visible SK Shell interaction as a selectable, independently scrollable terminal screen with a fixed compact prompt, preserving keyboard, mouse, touch, copy, and paste behavior.
+- [x] Set first launch to the separate Files/Explorer workspace, opening Editor only after the user chooses an editable file, without merging Explorer into the initial editing view.
+- [x] Re-verify and enforce focused Run availability so it is absent from Terminal and every non-Editor surface, and appears only after a runnable source file is active in Editor.
+- [x] Add the supplied developer portrait to a simple About card in Settings with a local edit-gate code of `0`, clearly treating the gate as a convenience control rather than real security.
+- [x] Simplify user-facing Guide, About, and status wording to explain backend connection and supported runtime categories without exposing implementation vendors or internal sources.
+- [x] Review runnable-language coverage and document that new arbitrary language or project runtimes require a compatible backend image or defined public execution route rather than promising universal execution.

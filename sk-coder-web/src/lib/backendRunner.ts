@@ -124,6 +124,17 @@ export async function getAvailableRuntimes(): Promise<RuntimeInfo[]> {
   }
 }
 
+export async function getWorkspaceRuntimeStatus(): Promise<{ ready: boolean }> {
+  try {
+    const response = await fetch(`${BASE}/execute/runtimes`, { signal: AbortSignal.timeout(5000), headers: getHeaders() })
+    if (!response.ok) return { ready: false }
+    const data = await response.json() as { status?: { ready?: boolean } }
+    return { ready: data.status?.ready === true }
+  } catch {
+    return { ready: false }
+  }
+}
+
 export type TerminalSocketHandlers = {
   onReady: (sessionId: string) => void
   onStdout: (data: string) => void

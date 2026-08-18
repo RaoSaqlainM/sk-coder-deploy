@@ -33,11 +33,11 @@ export default function IndexPage() {
       <TopBar />
 
       <div className="ide-main">
-        <div className={`ide-sidebar${sidebarOpen ? " sidebar-open" : ""}`}>
+        <div className={`ide-sidebar${sidebarOpen && activePanel === "editor" ? " sidebar-open" : ""}`}>
           <FileExplorer />
         </div>
 
-        {sidebarOpen && (
+        {sidebarOpen && activePanel === "editor" && (
           <div className="sidebar-backdrop" onClick={() => useIDEStore.getState().setSidebarOpen(false)} />
         )}
 

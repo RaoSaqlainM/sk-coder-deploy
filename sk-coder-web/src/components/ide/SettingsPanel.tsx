@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { validateGitHubToken } from "@/lib/githubClient"
 import { toast } from "sonner"
+import developerPortrait from "@/assets/saqlain-developer.jpg"
 
 type ToggleProps = { checked: boolean; onChange: (v: boolean) => void }
 function Toggle({ checked, onChange }: ToggleProps) {
@@ -119,6 +120,8 @@ export default function SettingsPanel() {
   const [puterConnected, setPuterConnected] = useState(() => {
     try { return !!window.puter?.auth?.isSignedIn() } catch { return false }
   })
+  const [developerPhoto, setDeveloperPhoto] = useState(() => localStorage.getItem("sk-coder-developer-photo") || developerPortrait)
+  const developerPhotoInputRef = useRef<HTMLInputElement>(null)
 
   async function handleConnectKey() {
     if (!keyInput.trim()) { toast.error("Paste your API key first"); return }
@@ -181,6 +184,34 @@ export default function SettingsPanel() {
     setTokenInput("")
     updateGithubSettings({ token: "", username: "", codespaceActive: "" })
     toast.success("GitHub was disconnected from this browser")
+  }
+
+  function requestDeveloperPhotoChange() {
+    if (window.prompt("Enter the local edit code") !== "0") {
+      toast.error("Edit code did not match")
+      return
+    }
+    developerPhotoInputRef.current?.click()
+  }
+
+  function changeDeveloperPhoto(file: File | undefined) {
+    if (!file?.type.startsWith("image/")) {
+      toast.error("Choose an image file")
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : ""
+      if (!value) return
+      try {
+        localStorage.setItem("sk-coder-developer-photo", value)
+        setDeveloperPhoto(value)
+        toast.success("Developer photo updated in this browser")
+      } catch {
+        toast.error("This image is too large to save in this browser")
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   const keyStatus = settings.ai.keyStatus
@@ -468,18 +499,16 @@ export default function SettingsPanel() {
                 <div className="settings-section" style={{ borderBottom: "none" }}>
                   <div className="settings-section-title">Contact & Links</div>
                   <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem", background: "var(--bg-elevated)", borderRadius: "var(--radius)", marginBottom: "0.75rem" }}>
-                    <div style={{ width: 52, height: 52, borderRadius: "50%", display: "grid", placeItems: "center", flexShrink: 0, border: "2px solid var(--border-focus)", background: "linear-gradient(135deg, rgba(203,166,247,0.35), rgba(137,180,250,0.35))", color: "var(--text-primary)" }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M5 19c1.5-3 4.5-4.5 7-4.5s5.5 1.5 7 4.5" />
-                      </svg>
-                    </div>
+                    <img src={developerPhoto} alt="Saqlain King" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid var(--border-focus)" }} />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)" }}>Saqlain King</div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Creator & Developer of SK Coder</div>
                       <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3 }}>Building tools for developers everywhere.</div>
                     </div>
                   </div>
+                  <input ref={developerPhotoInputRef} type="file" accept="image/*" hidden onChange={(event) => changeDeveloperPhoto(event.target.files?.[0])} />
+                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: "0.2rem 0.45rem", marginBottom: "0.75rem" }} onClick={requestDeveloperPhotoChange}>Change developer photo</button>
+                  <div className="settings-hint" style={{ marginBottom: "0.75rem" }}>The photo change code is a local convenience gate. It does not provide account-level security.</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                     {[
                       { label: "Report a Bug", href: "mailto:support@skcoder.app", icon: "🐛" },
@@ -491,6 +520,11 @@ export default function SettingsPanel() {
                         <span>{link.label}</span>
                       </a>
                     ))}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.65rem", marginTop: "0.9rem" }}>
+                    <a href="/guide" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>User Guide</a>
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>Privacy</a>
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
                   </div>
                 </div>
               </>
