@@ -10,6 +10,7 @@ services:
       context: ./backend
     environment:
       PORT: 3001
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       RUNTIME_IMAGE: ${RUNTIME_IMAGE:-sk-coder-runtime:latest}
       WORKSPACE_ROOT: /var/lib/sk-coder/workspaces
       WORKSPACE_METADATA_PATH: /var/lib/sk-coder/workspaces/.registry/workspaces.json
@@ -25,6 +26,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - workspace-data:/var/lib/sk-coder/workspaces
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
     depends_on:
       runtime:
         condition: service_completed_successfully

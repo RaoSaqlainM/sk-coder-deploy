@@ -6,6 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { isAllowedOrigin } from "./lib/originPolicy";
 const app: Express = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use(pinoHttp({
@@ -19,7 +20,12 @@ app.use(pinoHttp({
         },
     },
 }));
-app.use(cors({ exposedHeaders: ["X-Device-Id"] }));
+app.use(cors({
+    origin(origin, callback) {
+        callback(isAllowedOrigin(origin) ? null : new Error("Origin is not allowed"), isAllowedOrigin(origin));
+    },
+    exposedHeaders: ["X-Device-Id"],
+}));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use((req: any, _res: Response, next: NextFunction) => {

@@ -20,6 +20,7 @@ type WandboxCompiler = {
 const WANDBOX_RUN_URL = "https://wandbox.org/api/compile.json";
 const WANDBOX_CATALOG_URL = "https://wandbox.org/api/list.json";
 const CATALOG_TTL_MS = 10 * 60 * 1000;
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 const RUNTIME_CONFIGS: Record<string, RuntimeConfig> = {
     node: { backend: "node", wandboxPrefixes: ["nodejs-"], filename: "main.js" },
     javascript: { backend: "node", wandboxPrefixes: ["nodejs-"], filename: "main.js" },
@@ -131,7 +132,7 @@ async function tryPyodide(code: string): Promise<ExecResponse | null> {
 async function tryBackend(language: string, code: string, stdin = ""): Promise<ExecResponse | null> {
     try {
         const deviceId = localStorage.getItem("sk-device-id") || "anonymous";
-        const response = await fetch("/api/execute", {
+        const response = await fetch(`${API_BASE}/execute`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
             body: JSON.stringify({ language, code, stdin }),

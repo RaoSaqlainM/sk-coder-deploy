@@ -1,4 +1,5 @@
 import type { FileNode } from "@/types/ide";
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 export interface CloudProject {
     id: number;
     name: string;
@@ -9,7 +10,7 @@ export interface CloudProject {
     updatedAt: string;
 }
 export async function listProjects(): Promise<CloudProject[]> {
-    const res = await fetch("/api/projects");
+    const res = await fetch(`${API_BASE}/projects`);
     if (!res.ok)
         throw new Error(`Failed to list projects: ${res.status}`);
     return res.json();
@@ -20,7 +21,7 @@ export async function saveProject(data: {
     language: string;
     files: FileNode[];
 }): Promise<CloudProject> {
-    const res = await fetch("/api/projects", {
+    const res = await fetch(`${API_BASE}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -35,7 +36,7 @@ export async function updateProject(id: number, data: {
     language?: string;
     files?: FileNode[];
 }): Promise<CloudProject> {
-    const res = await fetch(`/api/projects/${id}`, {
+    const res = await fetch(`${API_BASE}/projects/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -45,7 +46,7 @@ export async function updateProject(id: number, data: {
     return res.json();
 }
 export async function deleteProject(id: number): Promise<void> {
-    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" });
     if (!res.ok)
         throw new Error(`Failed to delete project: ${res.status}`);
 }
