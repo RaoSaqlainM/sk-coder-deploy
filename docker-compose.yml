@@ -25,7 +25,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - workspace-data:/var/lib/sk-coder/workspaces
+      - ${WORKSPACE_HOST_PATH:-/var/lib/sk-coder/workspaces}:/var/lib/sk-coder/workspaces
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
     depends_on:
@@ -43,6 +43,3 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
-
-volumes:
-  workspace-data:

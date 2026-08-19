@@ -18,11 +18,8 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - workspace-data:/var/lib/sk-coder/workspaces
+      - ${WORKSPACE_HOST_PATH:-/var/lib/sk-coder/workspaces}:/var/lib/sk-coder/workspaces
     depends_on:
       runtime:
         condition: service_completed_successfully
     restart: unless-stopped
-
-volumes:
-  workspace-data:

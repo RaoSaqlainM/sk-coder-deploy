@@ -38,3 +38,8 @@
 - [ ] Diagnose why SK Shell cannot complete its WebSocket connection through the active temporary HTTPS tunnel after the Vercel endpoint variables are set.
 - [ ] Correct the AWS workspace safety-reserve admission settings after the confirmed tunnel WebSocket connected but the backend refused session creation.
 - [ ] Ensure the backend-only Compose service imports the root deployment `.env` file so AWS constrained storage settings override the unsafe production defaults.
+- [ ] Independently test the live backend with C++, Python plus NumPy, Java, Kotlin, and multi-file workspace synchronization.
+- [ ] Independently test SK Shell package installation with a small npm project and record any capacity, network, or package-manager limitation.
+- [ ] Verify the live Vercel interface against the temporary backend path and repair every reproducible runtime defect found during the test matrix.
+- [ ] Requery the active tunnel with a cache-busting request and confirm the intended constrained workspace limits before executing language and npm tests.
+- [ ] Replace the named-volume workspace mount with a host bind mount shared by the backend container and dynamically created runtime containers so source-run paths exist inside Docker.
