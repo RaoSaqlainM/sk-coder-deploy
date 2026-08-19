@@ -18,10 +18,23 @@
 - [ ] Run a read-only AWS storage and application inventory to identify the exact old folder and Docker volume before providing deletion commands.
 - [x] Connect to the cleaned AWS instance from Git Bash using the local key without copying either key into the repository or server application folder.
 - [x] Install Docker Engine and Docker Compose on the cleaned AWS instance if they are not already available.
-- [ ] Clone the public deployment repository into `/opt/sk-coder-backend`, configure allowed frontend origins, and start the backend runtime stack.
+- [x] Clone the public deployment repository into `/opt/sk-coder-backend`, configure allowed frontend origins, and start the backend runtime stack.
 - [ ] Verify the local backend health endpoint and then configure the public API domain before setting Vercel environment variables.
 - [x] Install Docker Engine and Docker Compose on the Ubuntu 26.04 AWS instance after the required system update and reboot.
-- [ ] Use constrained test storage values suitable for the confirmed 28 GB AWS root disk rather than the 75 GB production workspace defaults.
-- [ ] Replace the unavailable OpenJDK 21 package in the Debian Bookworm runtime image with an available supported Java package and validate the build.
-- [ ] Pull the repaired public repository on AWS, rebuild the runtime, and confirm the backend health endpoint starts successfully.
-- [ ] Remove the fixed UID assignment that conflicts with the existing Node base-image user and rebuild the runtime image.
+- [x] Use constrained test storage values suitable for the confirmed 28 GB AWS root disk rather than the 75 GB production workspace defaults.
+- [x] Replace the unavailable OpenJDK 21 package in the Debian Bookworm runtime image with an available supported Java package and validate the build.
+- [x] Pull the repaired public repository on AWS, rebuild the runtime, and confirm the backend health endpoint starts successfully.
+- [x] Remove the fixed UID assignment that conflicts with the existing Node base-image user and rebuild the runtime image.
+- [x] Deploy the dedicated frontend-only public repository to Vercel with the verified Vite build settings at https://sk-code.vercel.app.
+- [ ] Configure an HTTPS API domain for the AWS backend before setting the Vercel API and WebSocket environment variables.
+- [ ] Verify that frontend editor, Preview, media, and interface behavior remain unchanged while backend workspace storage is constrained for the 28 GB AWS test server.
+- [x] Exit the incorrect `RaoSaqlainKing/SK-code` multi-service Vercel import and deploy the dedicated frontend-only Vite project instead.
+- [x] Publish a dedicated frontend-only public repository for Vercel so its import screen cannot detect the AWS backend as a second service.
+- [ ] Update the AWS backend allowed-origin policy with https://sk-code.vercel.app after the HTTPS API domain is configured.
+- [ ] Create a free temporary HTTPS tunnel to the local AWS backend so the Vercel URL can safely reach the API and terminal WebSocket without a custom domain.
+- [ ] Set the temporary tunnel API and WebSocket URLs in Vercel and allow https://sk-code.vercel.app in the AWS backend origin policy.
+- [ ] Verify a real source run and terminal connection from https://sk-code.vercel.app through the temporary tunnel.
+- [ ] Diagnose the stalled Cloudflare quick-tunnel command and capture its connectivity output before retrying a temporary backend URL.
+- [ ] Diagnose why SK Shell cannot complete its WebSocket connection through the active temporary HTTPS tunnel after the Vercel endpoint variables are set.
+- [ ] Correct the AWS workspace safety-reserve admission settings after the confirmed tunnel WebSocket connected but the backend refused session creation.
+- [ ] Ensure the backend-only Compose service imports the root deployment `.env` file so AWS constrained storage settings override the unsafe production defaults.

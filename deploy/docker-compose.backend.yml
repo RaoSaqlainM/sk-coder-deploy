@@ -8,21 +8,12 @@ services:
   backend:
     build:
       context: ../backend
+    env_file:
+      - ../.env
     environment:
       PORT: 3001
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
-      RUNTIME_IMAGE: ${RUNTIME_IMAGE:-sk-coder-runtime:latest}
       WORKSPACE_ROOT: /var/lib/sk-coder/workspaces
       WORKSPACE_METADATA_PATH: /var/lib/sk-coder/workspaces/.registry/workspaces.json
-      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-72}
-      SESSION_MAX_BYTES: ${SESSION_MAX_BYTES:-5368709120}
-      WORKSPACE_MAX_BYTES: ${WORKSPACE_MAX_BYTES:-80530636800}
-      WORKSPACE_SAFETY_RESERVE_BYTES: ${WORKSPACE_SAFETY_RESERVE_BYTES:-26843545600}
-      PACKAGE_CACHE_MAX_BYTES: ${PACKAGE_CACHE_MAX_BYTES:-21474836480}
-      LOG_MAX_BYTES: ${LOG_MAX_BYTES:-5368709120}
-      SESSION_MAX_COUNT: ${SESSION_MAX_COUNT:-50}
-      COMMAND_TIMEOUT_MS: ${COMMAND_TIMEOUT_MS:-120000}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
     volumes:
