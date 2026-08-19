@@ -10,3 +10,7 @@
 - [ ] Configure the AWS or Oracle backend domain, CORS policy, WebSocket endpoint, Docker stack, and health check before connecting Vercel.
 - [ ] Keep all private SSH keys exclusively on the user’s computer and use them only through a local terminal for server login.
 - [x] Update every frontend API request to honor the configured external backend URL so a Vercel-hosted frontend can use AWS or Oracle without same-origin request failures.
+- [ ] Audit the deployable source for public-release safety before creating a new public GitHub repository.
+- [ ] Create a backend-only archive containing deployment source and configuration but excluding all keys, environment files, runtime data, build output, dependencies, and backups.
+- [ ] Create and publish a new public GitHub repository with a clear deployment-ready name after the release-safety audit passes.
+- [ ] Provide a backup-first AWS cleanup procedure and request explicit server-specific confirmation before any destructive delete command is used.
