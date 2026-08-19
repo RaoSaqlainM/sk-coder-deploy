@@ -139,3 +139,7 @@
 - [x] Restore direct HTML project Preview from Explorer and replace inaccurate static-site preview wording with clear HTML preview behavior.
 - [x] Restore long, standalone Guide, Privacy, and Terms pages with swappable in-page sections while removing the duplicate long content from Settings → About.
 - [x] Retest selected-file Preview, imported HTML project assets, media playback, standalone information pages, Settings, and complete navigation after the correction.
+- [x] Simplify Preview action wording so it names the selected file type without implying that all files are static HTML projects.
+- [x] Restore the full detailed standalone User Guide covering supported languages, run paths, previews, terminals, archives, project limits, and honest unsupported cases.
+- [x] Expand standalone Privacy and Terms pages with the previously available user-focused detail while keeping Settings → About concise.
+- [x] Conduct a senior-level regression audit across build outputs, panels, Preview targets, source execution, documents, responsive layout, and browser-console health; fix reproducible defects found.

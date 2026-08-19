@@ -63,7 +63,7 @@ function isFresh(updatedAt: number) {
 
 function isInfrastructureFailure(stderr: string) {
   const value = stderr.toLowerCase()
-  return value.includes("catatonit") || value.includes("failed to exec pid1") || value.includes("runtime unavailable") || value.includes("container unavailable") || value.includes("isolated runtime service")
+  return value.includes("catatonit") || value.includes("failed to exec pid1") || value.includes("runtime unavailable") || value.includes("container unavailable") || value.includes("isolated runtime service") || value.includes("oci runtime error") || value.includes("crun: clone") || value.includes("resource temporarily unavailable")
 }
 
 async function getWandboxCatalog(): Promise<WandboxCompiler[]> {

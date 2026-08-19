@@ -75,11 +75,8 @@ export function getMediaKind(node: FileNode): MediaKind | null {
 }
 
 export function previewLabelFor(node: FileNode): string {
-  if (isImagePreviewFile(node)) return "Preview Image"
-  if (isVideoPreviewFile(node)) return "Play Video"
-  if (isAudioPreviewFile(node)) return "Play Audio"
-  if (isPdfPreviewFile(node)) return "Open PDF Preview"
-  return "Preview HTML Project"
+  void node
+  return "Preview"
 }
 
 function namesInFolder(folder: FileNode) {
