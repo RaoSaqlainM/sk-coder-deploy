@@ -121,6 +121,7 @@ export default function SettingsPanel() {
     try { return !!window.puter?.auth?.isSignedIn() } catch { return false }
   })
   const [developerPhoto, setDeveloperPhoto] = useState(() => localStorage.getItem("sk-coder-developer-photo") || developerPortrait)
+  const [aboutSection, setAboutSection] = useState<"guide" | "privacy" | "terms" | "limits">("guide")
   const developerPhotoInputRef = useRef<HTMLInputElement>(null)
 
   async function handleConnectKey() {
@@ -458,42 +459,30 @@ export default function SettingsPanel() {
                 </div>
 
                 <div className="settings-section">
-                  <div className="settings-section-title">User Guide</div>
-                  {[
-                    { icon: "📁", title: "Files and Editor", text: "Start in Files. Double-click a code file to open it beside Files. Double-click inside the editor to show or hide Files again." },
-                    { icon: "▶️", title: "Run and Results", text: "Use Run only when it appears. Your result shows in Preview. If code cannot run here, the app tells you clearly." },
-                    { icon: "🖼️", title: "Pictures, video, and sound", text: "Open a media file to preview it. Common pictures, videos, and sounds can play in Preview. Your browser decides which formats it can play." },
-                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the full terminal for folders, commands, and project work. It needs a ready workspace connection." },
-                    { icon: "💬", title: "AI Assistant", text: "SK Coder AI Assistant can explain your code and suggest changes. It asks before changing files, running code, or opening a preview." },
-                    { icon: "🕒", title: "Save your work", text: "Export important work as a ZIP. Clearing browser site data can remove files saved only in this browser." },
-                    { icon: "⚠️", title: "Simple limits", text: "Big projects, package installs, desktop apps, games, and unusual file formats may need SK Shell or another app. The app does not pretend they worked when they did not." },
-                    { icon: "🐙", title: "GitHub", text: "Use a small-permission token and choose only the repositories you want to use." },
-                  ].map((item) => (
-                    <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                      <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>{item.text}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-section-title">Privacy Policy</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                    <p style={{ marginBottom: "0.6rem" }}>Your browser keeps your local files. Download a ZIP before clearing browser data.</p>
-                    <p style={{ marginBottom: "0.6rem" }}>When you choose GitHub, AI, or a live workspace action, only the files or words needed for that action are sent there.</p>
-                    <p>Your AI keys and GitHub tokens stay in this browser until you remove them. Treat them like passwords.</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.85rem" }} role="tablist" aria-label="About information">
+                    {[
+                      { id: "guide", label: "User Guide" },
+                      { id: "privacy", label: "Privacy" },
+                      { id: "terms", label: "Terms" },
+                      { id: "limits", label: "Limits" },
+                    ].map((item) => (
+                      <button key={item.id} role="tab" aria-selected={aboutSection === item.id} className={`btn ${aboutSection === item.id ? "btn-primary" : "btn-ghost"}`} style={{ fontSize: 11, padding: "0.38rem 0.55rem" }} onClick={() => setAboutSection(item.id as typeof aboutSection)}>{item.label}</button>
+                    ))}
                   </div>
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-section-title">Terms of Use</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                    <p style={{ marginBottom: "0.6rem" }}>Use SK Coder for your own work and follow the rules of any service you connect.</p>
-                    <p>Keep copies of important files. Extra services, such as AI providers and GitHub, have their own rules and costs.</p>
-                  </div>
+                  {aboutSection === "guide" && <>
+                    <div className="settings-section-title">User Guide</div>
+                    {[
+                      { icon: "📁", title: "Files and Editor", text: "Start in Files. Double-click a code file to open it beside Files. Double-click inside the editor to show or hide Files again." },
+                      { icon: "▶️", title: "Run and Results", text: "Use Run only when it appears. Your result shows in Preview. If code cannot run here, the app tells you clearly." },
+                      { icon: "🖼️", title: "Pictures, video, sound, and PDFs", text: "Open a file to preview it. Video can play with sound and audio can play with normal controls when your browser supports that file." },
+                      { icon: "🖥️", title: "SK Shell", text: "SK Shell is the full terminal for folders, commands, and project work. It needs a ready workspace connection." },
+                      { icon: "💬", title: "AI Assistant", text: "SK Coder AI Assistant can explain your code and suggest changes. It asks before changing files, running code, or opening a preview." },
+                      { icon: "🐙", title: "GitHub", text: "Use a small-permission token and choose only the repositories you want to use." },
+                    ].map((item) => <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}><span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span><div><div style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div><div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>{item.text}</div></div></div>)}
+                  </>}
+                  {aboutSection === "privacy" && <><div className="settings-section-title">Privacy</div><div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}><p style={{ marginBottom: "0.6rem" }}>Your browser keeps your local files. Download a ZIP before clearing browser data.</p><p style={{ marginBottom: "0.6rem" }}>When you choose GitHub, AI, or a live workspace action, only the files or words needed for that action are sent there.</p><p>Your AI keys and GitHub tokens stay in this browser until you remove them. Treat them like passwords.</p></div></>}
+                  {aboutSection === "terms" && <><div className="settings-section-title">Terms</div><div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}><p style={{ marginBottom: "0.6rem" }}>Use SK Coder for your own work and follow the rules of any service you connect.</p><p>Keep copies of important files. Extra services, such as AI providers and GitHub, have their own rules and costs.</p></div></>}
+                  {aboutSection === "limits" && <><div className="settings-section-title">Simple Limits</div><div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}><p style={{ marginBottom: "0.6rem" }}>Your browser can preview common pictures, videos, sounds, and PDFs. The exact video or audio codec must be supported by your browser.</p><p style={{ marginBottom: "0.6rem" }}>Big projects, package installs, desktop apps, games, and unusual file formats may need SK Shell or another app.</p><p>Export important work as a ZIP. Clearing browser site data can remove files saved only in this browser.</p></div></>}
                 </div>
 
                 <div className="settings-section" style={{ borderBottom: "none" }}>

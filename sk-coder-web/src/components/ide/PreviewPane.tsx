@@ -2,13 +2,15 @@ import { useRef, useEffect, useState } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { buildPreview } from "@/lib/previewBuilder"
 import { execute } from "@/lib/executorChain"
+import { isDirectPreviewFile, isPdfPreviewFile } from "@/lib/projectCapabilities"
 import type { PreviewViewport } from "@/types/ide"
 
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
 
 export default function PreviewPane() {
-  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning } = useIDEStore()
+  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning, setFileAssetData } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const previewFileInputRef = useRef<HTMLInputElement>(null)
   const [externalUrl, setExternalUrl] = useState("")
   const [liveUrl, setLiveUrl] = useState("")
   const [showExternal, setShowExternal] = useState(false)
@@ -20,6 +22,8 @@ export default function PreviewPane() {
 
   const viewport = settings.preview.viewport
   const activeFile = getActiveFile()
+  const isPdfPreview = Boolean(activeFile && isPdfPreviewFile(activeFile))
+  const directPreviewNeedsSource = Boolean(activeFile && isDirectPreviewFile(activeFile) && !activeFile.assetData)
   const activePathRef = useRef<string | undefined>(activeFile?.path)
 
   useEffect(() => {
@@ -85,11 +89,28 @@ export default function PreviewPane() {
 
   function handleOpenExternal() {
     if (showExternal && liveUrl) { window.open(liveUrl, "_blank"); return }
+    if (activeFile && isDirectPreviewFile(activeFile) && activeFile.assetData) {
+      window.open(activeFile.assetData, "_blank")
+      return
+    }
     const html = buildPreview(fileTree, activeFile?.path)
     const blob = new Blob([html], { type: "text/html" })
     const url = URL.createObjectURL(blob)
     window.open(url, "_blank")
     setTimeout(() => URL.revokeObjectURL(url), 5000)
+  }
+
+  async function handlePreviewFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file || !activeFile) return
+    const assetData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read the selected file"))
+      reader.onerror = () => reject(new Error("Could not read the selected file"))
+      reader.readAsDataURL(file)
+    }).catch(() => "")
+    if (assetData) setFileAssetData(activeFile.path, assetData)
   }
 
   const viewportConfig: Record<PreviewViewport, { label: string; icon: string; w: string; h: string }> = {
@@ -220,7 +241,16 @@ export default function PreviewPane() {
       </div>
 
       <div className="preview-content-area">
-        {resultMode === "console" ? (
+        {resultMode === "preview" && directPreviewNeedsSource ? (
+          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", background: "#0d1117", padding: "1rem", boxSizing: "border-box" }}>
+            <div style={{ width: "min(440px, 100%)", display: "grid", gap: "0.75rem", textAlign: "center", padding: "1.25rem", border: "1px solid #30363d", borderRadius: 12, background: "#161b22" }}>
+              <strong style={{ color: "#e6edf3" }}>Choose the original file to preview {activeFile?.name}</strong>
+              <span style={{ color: "#8b949e", fontSize: 12, lineHeight: 1.55 }}>This saved workspace entry does not include its binary data yet. Choosing the original file restores a local preview and keeps it with this workspace.</span>
+              <input ref={previewFileInputRef} type="file" accept="image/*,audio/*,video/*,application/pdf,.pdf" hidden onChange={(event) => void handlePreviewFileSelect(event)} />
+              <button className="btn btn-primary" onClick={() => previewFileInputRef.current?.click()}>Choose original file</button>
+            </div>
+          </div>
+        ) : resultMode === "console" ? (
           <div className="result-console">
             <div className="result-summary-header">
               <div>
@@ -285,6 +315,10 @@ export default function PreviewPane() {
             <div style={{ fontFamily: "var(--font-mono)", color: result?.exitCode === 0 ? "#56d364" : result ? "#f97583" : "#58a6ff", fontSize: 12 }}>{resultStatus}</div>
             <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem", lineHeight: 1.6 }}>{runDetail}</div>
             {result?.executionTime !== undefined && <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem" }}>Finished in {result.executionTime} ms</div>}
+          </div>
+        ) : isPdfPreview && activeFile?.assetData ? (
+          <div style={{ width: "100%", height: "100%", background: "#0d1117" }}>
+            <iframe title={`${activeFile.name} PDF preview`} src={activeFile.assetData} style={{ width: "100%", height: "100%", border: "none", display: "block", background: "white" }} />
           </div>
         ) : viewport === "desktop" ? (
           <div className="preview-frame-full">

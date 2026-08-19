@@ -131,3 +131,7 @@
 - [x] Rename the AI workspace surface to SK Coder AI Assistant.
 - [x] Remove standalone Guide, Privacy, and Terms navigation and provide only simple, child-friendly guidance, privacy, terms, and limitations inside Settings.
 - [x] Retest all IDE panels, media previews, combined-view gestures, AI labels, Settings guidance, and build outputs after the corrected implementation.
+- [x] Repair direct media preview so previously imported and newly imported media remains readable without an unhelpful dead-end message.
+- [x] Add browser-native PDF preview and clear file handling for PDFs instead of attempting to open them as source code.
+- [x] Replace the stacked Settings Guide, Privacy, Terms, and limitation content with simple swappable in-app sections that show one subject at a time.
+- [x] Research and document browser-safe audio/video playback limits, then validate sound playback, PDF viewing, and Settings swapping in the live IDE.

@@ -30,25 +30,26 @@ const ZIP_COMPATIBLE_ARCHIVE_EXTENSIONS = new Set([
 
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 const MAX_ARCHIVE_ENTRIES = 4000
-const PREVIEWABLE_MEDIA_MIME_TYPES: Record<string, string> = {
+const PREVIEWABLE_ASSET_MIME_TYPES: Record<string, string> = {
   png: "image/png", apng: "image/apng", jpg: "image/jpeg", jpeg: "image/jpeg", jpe: "image/jpeg", jfif: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", svgz: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon", cur: "image/x-icon", avif: "image/avif", tif: "image/tiff", tiff: "image/tiff", heic: "image/heic", heif: "image/heif", jxl: "image/jxl",
   mp4: "video/mp4", m4v: "video/x-m4v", webm: "video/webm", ogv: "video/ogg", mov: "video/quicktime", mkv: "video/x-matroska", avi: "video/x-msvideo", wmv: "video/x-ms-wmv", flv: "video/x-flv", mpeg: "video/mpeg", mpg: "video/mpeg", "3gp": "video/3gpp", "3g2": "video/3gpp2", ts: "video/mp2t", mts: "video/mp2t", m2ts: "video/mp2t",
   mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg", m4a: "audio/mp4", aac: "audio/aac", flac: "audio/flac", wma: "audio/x-ms-wma", aif: "audio/aiff", aiff: "audio/aiff", amr: "audio/amr",
+  pdf: "application/pdf",
 }
 
 function shouldSkip(name: string): boolean {
   return SKIP_ENTRIES.has(name) || name.startsWith(".")
 }
 
-function previewableMediaMimeType(name: string, browserMimeType = ""): string | null {
+function previewableAssetMimeType(name: string, browserMimeType = ""): string | null {
   const normalizedBrowserMime = browserMimeType.split(";", 1)[0].trim().toLowerCase()
-  if (/^(image|video|audio)\//.test(normalizedBrowserMime)) return normalizedBrowserMime
+  if (/^(image|video|audio)\//.test(normalizedBrowserMime) || normalizedBrowserMime === "application/pdf") return normalizedBrowserMime
   const extension = name.split(".").pop()?.toLowerCase() || ""
-  return PREVIEWABLE_MEDIA_MIME_TYPES[extension] || null
+  return PREVIEWABLE_ASSET_MIME_TYPES[extension] || null
 }
 
-function isPreviewableMediaFile(file: File): boolean {
-  return Boolean(previewableMediaMimeType(file.name, file.type))
+function isPreviewableAssetFile(file: File): boolean {
+  return Boolean(previewableAssetMimeType(file.name, file.type))
 }
 
 function toDataUrl(mimeType: string, base64: string) {
@@ -141,7 +142,7 @@ export async function importFromZip(file: File): Promise<FileNode[]> {
           }
           if (isFile) {
             try {
-              const mimeType = previewableMediaMimeType(part)
+              const mimeType = previewableAssetMimeType(part)
               if (mimeType) newNode.assetData = toDataUrl(mimeType, await zipFile.async("base64"))
               else newNode.content = await zipFile.async("string")
             } catch (err) {
@@ -182,7 +183,7 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
       let content = ""
       let assetData: string | undefined
       try {
-        assetData = isPreviewableMediaFile(file) ? await fileToDataUrl(file) : undefined
+        assetData = isPreviewableAssetFile(file) ? await fileToDataUrl(file) : undefined
         if (!assetData) content = await file.text()
       } catch {
         content = ""
@@ -228,7 +229,7 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
         }
         if (isFile) {
           try {
-            newNode.assetData = isPreviewableMediaFile(file) ? await fileToDataUrl(file) : undefined
+            newNode.assetData = isPreviewableAssetFile(file) ? await fileToDataUrl(file) : undefined
             if (!newNode.assetData) newNode.content = await file.text()
           } catch {
             newNode.content = ""

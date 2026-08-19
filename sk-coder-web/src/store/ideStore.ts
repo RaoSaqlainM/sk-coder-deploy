@@ -220,6 +220,7 @@ type IDEActions = {
   deleteNode: (path: string) => void
   renameNode: (path: string, newName: string) => void
   updateFileContent: (path: string, content: string) => void
+  setFileAssetData: (path: string, assetData: string) => void
   moveNode: (fromPath: string, toFolderPath: string) => void
   openTab: (node: FileNode) => void
   closeTab: (tabId: string) => void
@@ -313,6 +314,14 @@ function updateContentAtPath(nodes: FileNode[], path: string, content: string): 
   return nodes.map((n) => {
     if (n.path === path) return { ...n, content }
     if (n.children) return { ...n, children: updateContentAtPath(n.children, path, content) }
+    return n
+  })
+}
+
+function updateAssetDataAtPath(nodes: FileNode[], path: string, assetData: string): FileNode[] {
+  return nodes.map((n) => {
+    if (n.path === path) return { ...n, assetData }
+    if (n.children) return { ...n, children: updateAssetDataAtPath(n.children, path, assetData) }
     return n
   })
 }
@@ -503,6 +512,14 @@ export const useIDEStore = create<IDEState & IDEActions>()(
           const ext = path.split(".").pop()?.toLowerCase()
           if (["html", "css", "js", "jsx", "ts", "tsx"].includes(ext || "")) get().refreshPreview()
         }
+        void get().saveWorkspaceToBackend()
+      },
+
+      setFileAssetData: (path, assetData) => {
+        const tree = updateAssetDataAtPath(get().fileTree, path, assetData)
+        const map = new Map<string, FileNode>()
+        flattenTree(tree, map)
+        set({ fileTree: tree, flatFiles: map, previewKey: get().previewKey + 1 })
         void get().saveWorkspaceToBackend()
       },
 

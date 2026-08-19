@@ -2,6 +2,7 @@ import type { FileNode } from "@/types/ide"
 
 export type FileCapability = "preview" | "run" | "none"
 export type MediaKind = "image" | "video" | "audio"
+export type PreviewKind = MediaKind | "pdf"
 
 export type FolderCapability = {
   buildCommand?: string
@@ -17,6 +18,7 @@ const HTML_EXTENSIONS = new Set(["html", "htm"])
 const IMAGE_EXTENSIONS = new Set(["png", "apng", "jpg", "jpeg", "jpe", "jfif", "gif", "webp", "svg", "svgz", "bmp", "ico", "cur", "avif", "tif", "tiff", "heic", "heif", "jxl"])
 const VIDEO_EXTENSIONS = new Set(["mp4", "m4v", "webm", "ogv", "ogg", "mov", "mkv", "avi", "wmv", "flv", "mpeg", "mpg", "3gp", "3g2", "ts", "mts", "m2ts"])
 const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "opus", "webm", "m4a", "aac", "flac", "wma", "aif", "aiff", "amr", "3gp"])
+const PDF_EXTENSIONS = new Set(["pdf"])
 
 export function extensionFor(name: string) {
   const last = name.lastIndexOf(".")
@@ -43,7 +45,20 @@ export function isAudioPreviewFile(node: FileNode): boolean {
 }
 
 export function isDirectPreviewFile(node: FileNode): boolean {
-  return getMediaKind(node) !== null
+  return getPreviewKind(node) !== null
+}
+
+export function isPdfPreviewFile(node: FileNode): boolean {
+  return getPreviewKind(node) === "pdf"
+}
+
+export function getPreviewKind(node: FileNode): PreviewKind | null {
+  const mediaKind = getMediaKind(node)
+  if (mediaKind) return mediaKind
+  if (node.type !== "file") return null
+  const dataMime = node.assetData?.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase() || ""
+  if (dataMime === "application/pdf") return "pdf"
+  return PDF_EXTENSIONS.has(extensionFor(node.name)) ? "pdf" : null
 }
 
 export function getMediaKind(node: FileNode): MediaKind | null {
@@ -63,6 +78,7 @@ export function previewLabelFor(node: FileNode): string {
   if (isImagePreviewFile(node)) return "Preview Image"
   if (isVideoPreviewFile(node)) return "Play Video"
   if (isAudioPreviewFile(node)) return "Play Audio"
+  if (isPdfPreviewFile(node)) return "Open PDF Preview"
   return "Preview Static Site"
 }
 
