@@ -30,21 +30,23 @@ const ZIP_COMPATIBLE_ARCHIVE_EXTENSIONS = new Set([
 
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 const MAX_ARCHIVE_ENTRIES = 4000
-const IMAGE_MIME_TYPES: Record<string, string> = {
+const PREVIEWABLE_MEDIA_MIME_TYPES: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", avif: "image/avif",
+  mp4: "video/mp4", webm: "video/webm", ogv: "video/ogg", mov: "video/quicktime",
+  mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", m4a: "audio/mp4", aac: "audio/aac", flac: "audio/flac",
 }
 
 function shouldSkip(name: string): boolean {
   return SKIP_ENTRIES.has(name) || name.startsWith(".")
 }
 
-function imageMimeType(name: string): string | null {
+function previewableMediaMimeType(name: string): string | null {
   const extension = name.split(".").pop()?.toLowerCase() || ""
-  return IMAGE_MIME_TYPES[extension] || null
+  return PREVIEWABLE_MEDIA_MIME_TYPES[extension] || null
 }
 
-function isImageFile(name: string): boolean {
-  return Boolean(imageMimeType(name))
+function isPreviewableMediaFile(name: string): boolean {
+  return Boolean(previewableMediaMimeType(name))
 }
 
 function toDataUrl(mimeType: string, base64: string) {
@@ -54,8 +56,8 @@ function toDataUrl(mimeType: string, base64: string) {
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read image data"))
-    reader.onerror = () => reject(new Error("Could not read image data"))
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read media data"))
+    reader.onerror = () => reject(new Error("Could not read media data"))
     reader.readAsDataURL(file)
   })
 }
@@ -137,7 +139,7 @@ export async function importFromZip(file: File): Promise<FileNode[]> {
           }
           if (isFile) {
             try {
-              const mimeType = imageMimeType(part)
+              const mimeType = previewableMediaMimeType(part)
               if (mimeType) newNode.assetData = toDataUrl(mimeType, await zipFile.async("base64"))
               else newNode.content = await zipFile.async("string")
             } catch (err) {
@@ -178,7 +180,7 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
       let content = ""
       let assetData: string | undefined
       try {
-        assetData = isImageFile(file.name) ? await fileToDataUrl(file) : undefined
+        assetData = isPreviewableMediaFile(file.name) ? await fileToDataUrl(file) : undefined
         if (!assetData) content = await file.text()
       } catch {
         content = ""
@@ -224,7 +226,7 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
         }
         if (isFile) {
           try {
-            newNode.assetData = isImageFile(file.name) ? await fileToDataUrl(file) : undefined
+            newNode.assetData = isPreviewableMediaFile(file.name) ? await fileToDataUrl(file) : undefined
             if (!newNode.assetData) newNode.content = await file.text()
           } catch {
             newNode.content = ""

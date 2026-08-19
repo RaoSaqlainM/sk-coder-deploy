@@ -4,7 +4,7 @@ import { useIDEStore } from "@/store/ideStore"
 import { importFromArchive, importFromFiles, isZipCompatibleArchive, exportToZip, downloadBlob } from "@/lib/importProject"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
-import { isImagePreviewFile } from "@/lib/projectCapabilities"
+import { isDirectPreviewFile } from "@/lib/projectCapabilities"
 
 const EXT_COLORS: Record<string, string> = {
   html: "#e34c26", htm: "#e34c26", css: "#264de4", scss: "#cc6699", sass: "#cc6699",
@@ -81,6 +81,7 @@ function FileIcon({ node, expanded }: { node: FileNode; expanded?: boolean }) {
     ...EXT_COLORS,
     h: "#555555", gitignore: "var(--text-muted)", env: "var(--orange)", toml: "var(--orange)",
     png: "#3d90ff", jpg: "#3d90ff", jpeg: "#3d90ff", gif: "#3d90ff", svg: "#ffb13b",
+    mp4: "#a78bfa", webm: "#a78bfa", ogv: "#a78bfa", mov: "#a78bfa", mp3: "#38bdf8", wav: "#38bdf8", ogg: "#38bdf8", m4a: "#38bdf8", aac: "#38bdf8", flac: "#38bdf8",
     txt: "var(--text-muted)", astro: "#ff5a03",
   }
   const color = colors[ext] || "var(--text-muted)"
@@ -131,8 +132,13 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     lastOpenTapAtRef.current = 0
     setArmedForOpen(false)
     openTab(node)
-    setActivePanel(isImagePreviewFile(node) ? "preview" : "editor")
-    setSidebarOpen(false)
+    if (isDirectPreviewFile(node)) {
+      setActivePanel("preview")
+      setSidebarOpen(false)
+      return
+    }
+    setActivePanel("editor")
+    setSidebarOpen(true)
   }
 
   function handleClick(event: React.MouseEvent) {

@@ -18,6 +18,7 @@ import ErrorPanel from "@/components/ide/ErrorPanel"
 
 export default function IndexPage() {
   const { activePanel, sidebarOpen, showSettings, setContextMenu, newItemType, loadWorkspaceFromBackend, saveWorkspaceToBackend } = useIDEStore()
+  const combinedWorkspace = activePanel === "editor" && sidebarOpen
 
   useEffect(() => {
     void loadWorkspaceFromBackend()
@@ -32,14 +33,10 @@ export default function IndexPage() {
     <div className="ide-layout" onClick={() => setContextMenu(null)}>
       <TopBar />
 
-      <div className="ide-main">
-        <div className={`ide-sidebar${sidebarOpen && activePanel === "editor" ? " sidebar-open" : ""}`}>
+      <div className={`ide-main${combinedWorkspace ? " workspace-combined" : ""}`}>
+        <div className={`ide-sidebar${combinedWorkspace ? " sidebar-open" : ""}`}>
           <FileExplorer />
         </div>
-
-        {sidebarOpen && activePanel === "editor" && (
-          <div className="sidebar-backdrop" onClick={() => useIDEStore.getState().setSidebarOpen(false)} />
-        )}
 
         <div className="ide-center">
           {activePanel === "files" && (

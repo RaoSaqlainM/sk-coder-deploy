@@ -77,6 +77,10 @@ export default function BottomNav() {
   const { activePanel, setActivePanel, sidebarOpen, setSidebarOpen, errors } = useIDEStore()
 
   function handleNav(id: ActivePanel) {
+    if (id === "files" && activePanel === "editor") {
+      setSidebarOpen(!sidebarOpen)
+      return
+    }
     if (id === "files") {
       setSidebarOpen(false)
       setActivePanel("files")

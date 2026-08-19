@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useIDEStore } from "@/store/ideStore"
 import { exportToZip, downloadBlob } from "@/lib/importProject"
 import { buildPreview } from "@/lib/previewBuilder"
-import { getFileCapability, isImagePreviewFile } from "@/lib/projectCapabilities"
+import { getFileCapability, isDirectPreviewFile, previewLabelFor } from "@/lib/projectCapabilities"
 import { execute } from "@/lib/executorChain"
 import type { FileNode } from "@/types/ide"
 import { toast } from "sonner"
@@ -224,14 +224,14 @@ export default function ContextMenu() {
   function handleOpen() {
     if (!node || node.type !== "file") return
     openTab(node)
-    if (isImagePreviewFile(node)) {
+    if (isDirectPreviewFile(node)) {
       setPreviewContent(buildPreview(fileTree, node.path))
       refreshPreview()
       setActivePanel("preview")
     } else {
       setActivePanel("editor")
+      setSidebarOpen(true)
     }
-    setSidebarOpen(false)
     setContextMenu(null)
   }
 
@@ -345,7 +345,7 @@ export default function ContextMenu() {
           {fileCapability === "preview" && (
             <div className="context-menu-item" onClick={handleRunPreview}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              {isImagePreviewFile(node) ? "Preview Image" : "Preview Static Site"}
+              {previewLabelFor(node)}
             </div>
           )}
 

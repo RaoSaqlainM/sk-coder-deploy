@@ -123,3 +123,6 @@
 - [x] Repair local image asset resolution for HTML and browser-project Preview so images referenced by project HTML render when their files are present in Explorer.
 - [x] Run an end-to-end regression pass across Files, Editor, Terminal, Preview, AI, APK, GitHub, public pages, archive extraction, source runs, project image previews, and mobile/desktop interaction states; fix every reproducible defect found.
 - [x] Repeat an end-to-end live validation of IDE tabs, public pages, build outputs, and preview availability at the user’s request.
+- [x] Restore a user-controlled combined Explorer-and-Editor workspace view through the requested double-activation interaction without changing the Files-first default view.
+- [x] Extend the unified Preview area so image, video, and audio files open in direct browser-native viewers and remain usable as local HTML project assets.
+- [x] Validate direct media playback and local asset rendering inside HTML Preview at mobile and desktop layouts.

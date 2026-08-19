@@ -895,6 +895,25 @@ select { cursor: pointer; }
     transform: translateX(0);
     opacity: 1;
   }
+  .ide-main.workspace-combined .ide-sidebar {
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    display: flex;
+    flex: 0 0 min(44%, 280px);
+    width: min(44%, 280px);
+    min-width: min(44%, 280px);
+    transform: none;
+    opacity: 1;
+    border-right: 1px solid var(--border);
+  }
+  .ide-main.workspace-combined .ide-center { width: auto; min-width: 0; }
+  .ide-main.workspace-combined .file-explorer-header { padding-inline: 0.45rem; }
+  .ide-main.workspace-combined .file-explorer-actions { gap: 0.1rem; }
+  .ide-main.workspace-combined .file-explorer-action-btn { width: 22px; height: 22px; }
+  .ide-main.workspace-combined .file-explorer-extract-btn { display: none; }
+  .ide-main.workspace-combined .file-node { padding-right: 0.2rem; }
+  .ide-main.workspace-combined .file-node-menu-btn { display: none; }
   .sidebar-backdrop {
     display: block;
     position: absolute; inset: 0; z-index: 19;

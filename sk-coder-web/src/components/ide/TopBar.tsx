@@ -16,7 +16,7 @@ export default function TopBar() {
   const [, navigate] = useLocation()
   const activeFile = getActiveFile()
   const fileCapability = activeFile ? getFileCapability(activeFile) : "none"
-  const showRunControl = activePanel === "editor" && !sidebarOpen && Boolean(activeFile) && fileCapability !== "none"
+  const showRunControl = activePanel === "editor" && Boolean(activeFile) && fileCapability !== "none"
 
   async function handleRun() {
     if (isRunning) {

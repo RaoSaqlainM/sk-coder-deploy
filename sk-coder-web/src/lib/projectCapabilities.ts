@@ -14,6 +14,8 @@ const SOURCE_EXTENSIONS = new Set([
 
 const HTML_EXTENSIONS = new Set(["html", "htm"])
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"])
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogv", "ogg", "mov"])
+const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "webm", "m4a", "aac", "flac"])
 
 export function extensionFor(name: string) {
   const last = name.lastIndexOf(".")
@@ -23,12 +25,31 @@ export function extensionFor(name: string) {
 export function getFileCapability(node: FileNode): FileCapability {
   if (node.type !== "file") return "none"
   const extension = extensionFor(node.name)
-  if (HTML_EXTENSIONS.has(extension) || IMAGE_EXTENSIONS.has(extension)) return "preview"
+  if (HTML_EXTENSIONS.has(extension) || isDirectPreviewFile(node)) return "preview"
   return SOURCE_EXTENSIONS.has(extension) ? "run" : "none"
 }
 
 export function isImagePreviewFile(node: FileNode): boolean {
   return node.type === "file" && IMAGE_EXTENSIONS.has(extensionFor(node.name))
+}
+
+export function isVideoPreviewFile(node: FileNode): boolean {
+  return node.type === "file" && VIDEO_EXTENSIONS.has(extensionFor(node.name))
+}
+
+export function isAudioPreviewFile(node: FileNode): boolean {
+  return node.type === "file" && AUDIO_EXTENSIONS.has(extensionFor(node.name))
+}
+
+export function isDirectPreviewFile(node: FileNode): boolean {
+  return isImagePreviewFile(node) || isVideoPreviewFile(node) || isAudioPreviewFile(node)
+}
+
+export function previewLabelFor(node: FileNode): string {
+  if (isImagePreviewFile(node)) return "Preview Image"
+  if (isVideoPreviewFile(node)) return "Play Video"
+  if (isAudioPreviewFile(node)) return "Play Audio"
+  return "Preview Static Site"
 }
 
 function namesInFolder(folder: FileNode) {

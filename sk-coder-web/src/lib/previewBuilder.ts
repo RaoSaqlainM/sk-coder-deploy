@@ -21,13 +21,12 @@ function resolveProjectPath(directory: string, reference: string): string {
     if (part === "..") resolved.pop()
     else resolved.push(part)
   }
-  return resolved.join("/")
+  return `/${resolved.join("/")}`
 }
 
-function inlineImageAssets(content: string, directory: string, files: Map<string, FileNode>): string {
-  const imageReference = /\.(?:png|jpe?g|gif|webp|svg|bmp|avif)(?:[?#][^"')\s]*)?$/i
+function inlineProjectAssets(content: string, directory: string, files: Map<string, FileNode>): string {
   return content.replace(/(\b(?:src|poster|href)\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, reference, suffix) => {
-    if (/^(?:data:|blob:|https?:|#)/i.test(reference) || !imageReference.test(reference)) return match
+    if (/^(?:data:|blob:|https?:|#)/i.test(reference)) return match
     const asset = files.get(resolveProjectPath(directory, reference))?.assetData
     return asset ? `${prefix}${asset}${suffix}` : match
   })
@@ -68,12 +67,20 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
   const files = flattenFiles(fileTree)
 
   if (activePath) {
-    const imageNode = files.get(activePath)
-    const imageSource = imageNode?.assetData
-    const imageExtension = imageNode?.name.split(".").pop()?.toLowerCase() || ""
-    if (imageNode?.type === "file" && imageSource && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(imageExtension)) {
-      const safeName = imageNode.name.replace(/[&<>"']/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value] || value))
-      return buildInlineHtml(`<main><img src="${imageSource}" alt="${safeName}"/><p>${safeName}</p></main>`, "body{margin:0;min-height:100vh;background:#0d1117;color:#c9d1d9;font:13px system-ui;display:grid;place-items:center}main{display:grid;gap:12px;justify-items:center;padding:24px;box-sizing:border-box;width:100%;height:100vh}img{max-width:100%;max-height:calc(100vh - 74px);object-fit:contain;border-radius:8px;box-shadow:0 10px 32px rgba(0,0,0,.38)}p{margin:0;color:#8b949e}", "")
+    const mediaNode = files.get(activePath)
+    const mediaSource = mediaNode?.assetData
+    const mediaExtension = mediaNode?.name.split(".").pop()?.toLowerCase() || ""
+    const imageExtensions = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"])
+    const videoExtensions = new Set(["mp4", "webm", "ogv", "ogg", "mov"])
+    const audioExtensions = new Set(["mp3", "wav", "ogg", "oga", "webm", "m4a", "aac", "flac"])
+    if (mediaNode?.type === "file" && mediaSource && (imageExtensions.has(mediaExtension) || videoExtensions.has(mediaExtension) || audioExtensions.has(mediaExtension))) {
+      const safeName = mediaNode.name.replace(/[&<>"']/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value] || value))
+      const mediaElement = imageExtensions.has(mediaExtension)
+        ? `<img src="${mediaSource}" alt="${safeName}"/>`
+        : videoExtensions.has(mediaExtension)
+          ? `<video controls preload="metadata" src="${mediaSource}">Your browser cannot play this video.</video>`
+          : `<audio controls preload="metadata" src="${mediaSource}">Your browser cannot play this audio.</audio>`
+      return buildInlineHtml(`<main class="media-preview">${mediaElement}<p>${safeName}</p></main>`, "body{margin:0;min-height:100vh;background:#0d1117;color:#c9d1d9;font:13px system-ui;display:grid;place-items:center}.media-preview{display:grid;gap:12px;justify-items:center;padding:24px;box-sizing:border-box;width:100%;height:100vh}.media-preview img,.media-preview video{max-width:100%;max-height:calc(100vh - 74px);object-fit:contain;border-radius:8px;box-shadow:0 10px 32px rgba(0,0,0,.38)}.media-preview video{background:#000}.media-preview audio{width:min(560px,100%)}.media-preview p{margin:0;color:#8b949e}", "")
     }
   }
 
@@ -101,7 +108,7 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
       return match
     })
 
-    return inlineImageAssets(html, dir, files)
+    return inlineProjectAssets(html, dir, files)
   }
 
   const cssFile = findFirst(files, "css")
