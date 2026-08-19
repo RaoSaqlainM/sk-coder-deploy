@@ -122,3 +122,4 @@
 - [x] Audit the APK editor against a four-tool workflow: browse/extract entries, edit supported text resources, replace supported image/media resources, and rebuild/download the changed archive with accurate unsupported-operation messages.
 - [x] Repair local image asset resolution for HTML and browser-project Preview so images referenced by project HTML render when their files are present in Explorer.
 - [x] Run an end-to-end regression pass across Files, Editor, Terminal, Preview, AI, APK, GitHub, public pages, archive extraction, source runs, project image previews, and mobile/desktop interaction states; fix every reproducible defect found.
+- [x] Repeat an end-to-end live validation of IDE tabs, public pages, build outputs, and preview availability at the user’s request.
