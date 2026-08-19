@@ -24,3 +24,4 @@
 - [ ] Use constrained test storage values suitable for the confirmed 28 GB AWS root disk rather than the 75 GB production workspace defaults.
 - [ ] Replace the unavailable OpenJDK 21 package in the Debian Bookworm runtime image with an available supported Java package and validate the build.
 - [ ] Pull the repaired public repository on AWS, rebuild the runtime, and confirm the backend health endpoint starts successfully.
+- [ ] Remove the fixed UID assignment that conflicts with the existing Node base-image user and rebuild the runtime image.
