@@ -14,5 +14,13 @@
 - [x] Create a backend-only archive containing deployment source and configuration but excluding all keys, environment files, runtime data, build output, dependencies, and backups.
 - [x] Create and publish a new public GitHub repository with a clear deployment-ready name after the release-safety audit passes.
 - [x] Provide a backup-first AWS cleanup procedure and request explicit server-specific confirmation before any destructive delete command is used.
-- [ ] Move the locally cloned source project out of the private-key folder and prevent accidental key commits before any Git action.
+- [x] Move the locally cloned source project out of the private-key folder and prevent accidental key commits before any Git action.
 - [ ] Run a read-only AWS storage and application inventory to identify the exact old folder and Docker volume before providing deletion commands.
+- [x] Connect to the cleaned AWS instance from Git Bash using the local key without copying either key into the repository or server application folder.
+- [x] Install Docker Engine and Docker Compose on the cleaned AWS instance if they are not already available.
+- [ ] Clone the public deployment repository into `/opt/sk-coder-backend`, configure allowed frontend origins, and start the backend runtime stack.
+- [ ] Verify the local backend health endpoint and then configure the public API domain before setting Vercel environment variables.
+- [x] Install Docker Engine and Docker Compose on the Ubuntu 26.04 AWS instance after the required system update and reboot.
+- [ ] Use constrained test storage values suitable for the confirmed 28 GB AWS root disk rather than the 75 GB production workspace defaults.
+- [ ] Replace the unavailable OpenJDK 21 package in the Debian Bookworm runtime image with an available supported Java package and validate the build.
+- [ ] Pull the repaired public repository on AWS, rebuild the runtime, and confirm the backend health endpoint starts successfully.
