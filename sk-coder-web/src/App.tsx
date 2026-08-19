@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter } from "wouter"
 import IndexPage from "@/pages/Index"
+import InformationPage from "@/pages/Information"
 import NotFound from "@/pages/not-found"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 
@@ -7,6 +8,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={IndexPage} />
+      <Route path="/guide"><InformationPage kind="guide" /></Route>
+      <Route path="/privacy"><InformationPage kind="privacy" /></Route>
+      <Route path="/terms"><InformationPage kind="terms" /></Route>
       <Route component={NotFound} />
     </Switch>
   )

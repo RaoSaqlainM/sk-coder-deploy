@@ -135,3 +135,7 @@
 - [x] Add browser-native PDF preview and clear file handling for PDFs instead of attempting to open them as source code.
 - [x] Replace the stacked Settings Guide, Privacy, Terms, and limitation content with simple swappable in-app sections that show one subject at a time.
 - [x] Research and document browser-safe audio/video playback limits, then validate sound playback, PDF viewing, and Settings swapping in the live IDE.
+- [x] Ensure Explorer Preview actions always target the selected image, video, audio, PDF, or HTML file rather than an unrelated previously opened editor tab.
+- [x] Restore direct HTML project Preview from Explorer and replace inaccurate static-site preview wording with clear HTML preview behavior.
+- [x] Restore long, standalone Guide, Privacy, and Terms pages with swappable in-page sections while removing the duplicate long content from Settings → About.
+- [x] Retest selected-file Preview, imported HTML project assets, media playback, standalone information pages, Settings, and complete navigation after the correction.

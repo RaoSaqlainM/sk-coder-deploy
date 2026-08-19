@@ -79,7 +79,7 @@ export function previewLabelFor(node: FileNode): string {
   if (isVideoPreviewFile(node)) return "Play Video"
   if (isAudioPreviewFile(node)) return "Play Audio"
   if (isPdfPreviewFile(node)) return "Open PDF Preview"
-  return "Preview Static Site"
+  return "Preview HTML Project"
 }
 
 function namesInFolder(folder: FileNode) {

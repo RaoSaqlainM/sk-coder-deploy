@@ -8,7 +8,7 @@ import type { PreviewViewport } from "@/types/ide"
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime"
 
 export default function PreviewPane() {
-  const { fileTree, previewKey, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning, setFileAssetData } = useIDEStore()
+  const { fileTree, flatFiles, previewKey, previewPath, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning, setFileAssetData } = useIDEStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const previewFileInputRef = useRef<HTMLInputElement>(null)
   const [externalUrl, setExternalUrl] = useState("")
@@ -21,7 +21,8 @@ export default function PreviewPane() {
   const [runningWithInput, setRunningWithInput] = useState(false)
 
   const viewport = settings.preview.viewport
-  const activeFile = getActiveFile()
+  const editorFile = getActiveFile()
+  const activeFile = previewPath ? flatFiles.get(previewPath) || editorFile : editorFile
   const isPdfPreview = Boolean(activeFile && isPdfPreviewFile(activeFile))
   const directPreviewNeedsSource = Boolean(activeFile && isDirectPreviewFile(activeFile) && !activeFile.assetData)
   const activePathRef = useRef<string | undefined>(activeFile?.path)

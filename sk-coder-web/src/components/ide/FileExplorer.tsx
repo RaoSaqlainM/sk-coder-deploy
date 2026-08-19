@@ -111,7 +111,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
   const {
     openTab, expandedFolders, toggleFolder, setContextMenu,
     renameNodeId, setRenameNodeId, renameNode, moveNode, setDragOver, dragOverId,
-    setActivePanel, setSidebarOpen, selectedPaths, selectionMode, batchOperation,
+    setActivePanel, setSidebarOpen, setPreviewPath, selectedPaths, selectionMode, batchOperation,
     setSelectionMode, toggleSelectedPath, moveNodes, copyNodes,
   } = useIDEStore()
   const [renameValue, setRenameValue] = useState(node.name)
@@ -133,6 +133,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     setArmedForOpen(false)
     openTab(node)
     if (isDirectPreviewFile(node)) {
+      setPreviewPath(node.path)
       setActivePanel("preview")
       setSidebarOpen(false)
       return

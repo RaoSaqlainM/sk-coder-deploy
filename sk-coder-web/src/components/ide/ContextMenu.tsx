@@ -64,7 +64,7 @@ export default function ContextMenu() {
     setNewItem, openTab, fileTree, setActivePanel, addTerminalLine,
     setTerminalInput, refreshPreview, setPreviewContent, clearTerminal,
     getActiveFile, settings, openInTerminal, openFileInTerminal, setFileTree, moveNode, setSidebarOpen, setPreviewResult,
-    setSelectionMode, toggleSelectedPath, setIsRunning,
+    setSelectionMode, toggleSelectedPath, setIsRunning, setPreviewPath,
   } = useIDEStore()
   const ref = useRef<HTMLDivElement>(null)
   const [clipboardState, setClipboardState] = useState<{ path: string; mode: "copy" | "move" } | null>(null)
@@ -225,6 +225,7 @@ export default function ContextMenu() {
     if (!node || node.type !== "file") return
     openTab(node)
     if (isDirectPreviewFile(node)) {
+      setPreviewPath(node.path)
       setPreviewContent(buildPreview(fileTree, node.path))
       refreshPreview()
       setActivePanel("preview")
@@ -237,6 +238,8 @@ export default function ContextMenu() {
 
   function handleRunPreview() {
     if (!node || node.type !== "file") return
+    openTab(node)
+    setPreviewPath(node.path)
     const html = buildPreview(fileTree, node.path)
     setPreviewContent(html)
     refreshPreview()

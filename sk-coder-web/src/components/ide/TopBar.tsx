@@ -10,7 +10,7 @@ export default function TopBar() {
   const {
     isRunning, setIsRunning, fileTree, activePanel, sidebarOpen,
     setActivePanel, setShowSettings, getActiveFile,
-    setPreviewContent, setErrors, setPreviewResult,
+    setPreviewContent, setPreviewPath, setErrors, setPreviewResult,
   } = useIDEStore()
   const activeFile = getActiveFile()
   const fileCapability = activeFile ? getFileCapability(activeFile) : "none"
@@ -29,6 +29,7 @@ export default function TopBar() {
     const code = activeFile.content || ""
     if (fileCapability === "preview") {
       setPreviewResult(null)
+      setPreviewPath(activeFile.path)
       setPreviewContent(buildPreview(fileTree, activeFile.path))
       setActivePanel("preview")
       toast.success("Preview ready")

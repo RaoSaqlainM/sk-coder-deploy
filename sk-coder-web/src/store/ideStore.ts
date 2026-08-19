@@ -181,6 +181,7 @@ type IDEState = {
   aiChatOpen: boolean
   aiTyping: boolean
   previewContent: string
+  previewPath: string | null
   previewKey: number
   previewResult: PreviewResult | null
   contextMenu: ContextMenuState
@@ -236,6 +237,7 @@ type IDEActions = {
   setAIChatOpen: (open: boolean) => void
   setAITyping: (typing: boolean) => void
   setPreviewContent: (html: string) => void
+  setPreviewPath: (path: string | null) => void
   refreshPreview: () => void
   setPreviewResult: (result: PreviewResult | null) => void
   setContextMenu: (menu: ContextMenuState) => void
@@ -385,6 +387,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(
       aiChatOpen: false,
       aiTyping: false,
       previewContent: "",
+      previewPath: null,
       previewKey: 0,
       previewResult: null,
       contextMenu: null,
@@ -623,6 +626,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(
       setAIChatOpen: (open) => set({ aiChatOpen: open }),
       setAITyping: (typing) => set({ aiTyping: typing }),
       setPreviewContent: (html) => set({ previewContent: html }),
+      setPreviewPath: (path) => set({ previewPath: path }),
       refreshPreview: () => set((s) => ({ previewKey: s.previewKey + 1 })),
       setPreviewResult: (result) => set({ previewResult: result }),
       setContextMenu: (menu) => set({ contextMenu: menu }),
@@ -746,6 +750,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(
       storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         fileTree: stripContent(state.fileTree),
+        previewPath: state.previewPath,
         openTabs: state.openTabs,
         activeTabId: state.activeTabId,
         expandedFolders: Array.from(state.expandedFolders),
