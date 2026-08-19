@@ -14,3 +14,5 @@
 - [x] Create a backend-only archive containing deployment source and configuration but excluding all keys, environment files, runtime data, build output, dependencies, and backups.
 - [x] Create and publish a new public GitHub repository with a clear deployment-ready name after the release-safety audit passes.
 - [x] Provide a backup-first AWS cleanup procedure and request explicit server-specific confirmation before any destructive delete command is used.
+- [ ] Move the locally cloned source project out of the private-key folder and prevent accidental key commits before any Git action.
+- [ ] Run a read-only AWS storage and application inventory to identify the exact old folder and Docker volume before providing deletion commands.

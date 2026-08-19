@@ -4,6 +4,10 @@ build/
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
+keys/
+private-keys/
 .DS_Store
 Thumbs.db
 *.log
