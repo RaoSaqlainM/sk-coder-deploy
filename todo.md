@@ -143,3 +143,8 @@
 - [x] Restore the full detailed standalone User Guide covering supported languages, run paths, previews, terminals, archives, project limits, and honest unsupported cases.
 - [x] Expand standalone Privacy and Terms pages with the previously available user-focused detail while keeping Settings → About concise.
 - [x] Conduct a senior-level regression audit across build outputs, panels, Preview targets, source execution, documents, responsive layout, and browser-console health; fix reproducible defects found.
+- [x] Remove duplicate media-file actions so type detection presents one clear automatic Preview route for each selected image, video, audio, or PDF file.
+- [x] Restore an obvious standalone practical User Manual entry and comprehensive content covering Files, folders, Preview, Result Center, languages, project types, AI approvals, GitHub permissions, terminals, storage, limits, and unsupported cases.
+- [x] Repair Result Center so C++, Python, Java, and other runnable files show the correct selected-file result with practical Console, Problems, input, files-produced, and interaction controls.
+- [x] Remove incorrect HTML filename/source text from result and console surfaces when the user is using HTML Preview.
+- [x] Reproduce and test every runnable language route, media Preview route, HTML Preview, Result Center tab, navigation panel, and responsive state; fix each reproducible defect before delivery.

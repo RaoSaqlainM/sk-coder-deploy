@@ -146,7 +146,7 @@ export default function PreviewPane() {
   ]
 
   async function runWithInput() {
-    if (!activeFile || runningWithInput) return
+    if (!activeFile || runningWithInput || isRunning) return
     const extension = activeFile.path.split(".").pop()?.toLowerCase() || activeFile.language || ""
     if (["html", "htm", "css", "md", "json"].includes(extension)) return
     setRunningWithInput(true)
@@ -269,10 +269,10 @@ export default function PreviewPane() {
             )}
             {supportsConsoleInput && (
               <div className="result-action-row">
-                <button className={`btn btn-ghost ${showProgramInput ? "active" : ""}`} onClick={() => setShowProgramInput((visible) => !visible)}>
+                <button className={`btn btn-ghost ${showProgramInput ? "active" : ""}`} onClick={() => setShowProgramInput((visible) => !visible)} disabled={isRunning} title={isRunning ? "Wait for the current run to finish" : undefined}>
                   {showProgramInput ? "Hide program input" : "Program input"}
                 </button>
-                <button className="btn btn-secondary" onClick={openInteractiveTerminal}>
+                <button className="btn btn-secondary" onClick={openInteractiveTerminal} disabled={isRunning}>
                   Open interactive terminal
                 </button>
               </div>
@@ -284,8 +284,8 @@ export default function PreviewPane() {
                   <span>Add values your program should read, one value per line.</span>
                 </div>
                 <textarea value={programInput} onChange={(event) => setProgramInput(event.target.value)} placeholder={"Example:\n10\n20"} spellCheck={false} />
-                <button className="btn btn-secondary" onClick={() => void runWithInput()} disabled={runningWithInput}>
-                  {runningWithInput ? "Running…" : "Run with these values"}
+                <button className="btn btn-secondary" onClick={() => void runWithInput()} disabled={runningWithInput || isRunning}>
+                  {isRunning || runningWithInput ? "Waiting for current run…" : "Run with these values"}
                 </button>
               </div>
             )}

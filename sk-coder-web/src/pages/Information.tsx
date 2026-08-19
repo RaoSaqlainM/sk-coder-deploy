@@ -6,8 +6,8 @@ type InformationContent = { title: string; eyebrow: string; intro: string; secti
 
 const pageContent: Record<InformationKind, InformationContent> = {
   guide: {
-    title: "SK Coder User Guide",
-    eyebrow: "Detailed help for your workspace",
+    title: "SK Coder User Manual",
+    eyebrow: "Complete workspace and capability guide",
     intro: "SK Coder detects the file you choose and gives the matching action: edit, Preview, Run, open in Terminal, or a clear message when that action is not available.",
     sections: [
       {
@@ -32,6 +32,7 @@ const pageContent: Record<InformationKind, InformationContent> = {
       {
         title: "Terminal, AI, and GitHub",
         paragraphs: ["SK Shell is the full terminal. It is the place for changing folders, working with project files, package commands, builds, and interactive commands when a workspace connection is ready.", "SK Coder AI Assistant can explain selected code and propose edits. It asks before changing files, running commands, or opening a preview. GitHub import and push use a fine-grained token; choose only the repositories and permissions you need."],
+        items: ["For importing a repository, use repository Metadata: Read and Contents: Read. Add Contents: Read and write only when you need to push file changes.", "Add Pull requests: Read and write only when you need to work with pull requests. Add Workflows: Read and write only when you intentionally edit GitHub Actions files.", "Do not grant Administration access unless you are managing repository settings. Select only the repositories you intend to use."],
       },
       {
         title: "Archives, APKs, and saving work",
@@ -80,7 +81,7 @@ export default function InformationPage({ kind }: { kind: InformationKind }) {
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap", paddingBottom: "1.2rem", borderBottom: "1px solid #30363d" }}>
           <Link href="/" style={{ color: "#58a6ff", textDecoration: "none", fontWeight: 700 }}>← Back to SK Coder</Link>
           <nav style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }} aria-label="Information pages">
-            {(["guide", "privacy", "terms"] as InformationKind[]).map((item) => <Link key={item} href={`/${item}`} style={{ padding: "0.42rem 0.6rem", borderRadius: 7, color: location === `/${item}` ? "#0d1117" : "#c9d1d9", background: location === `/${item}` ? "#58a6ff" : "#21262d", textDecoration: "none", fontSize: 12, fontWeight: 700 }}>{item === "guide" ? "User Guide" : item === "privacy" ? "Privacy" : "Terms"}</Link>)}
+            {(["guide", "privacy", "terms"] as InformationKind[]).map((item) => <Link key={item} href={`/${item}`} style={{ padding: "0.42rem 0.6rem", borderRadius: 7, color: location === `/${item}` ? "#0d1117" : "#c9d1d9", background: location === `/${item}` ? "#58a6ff" : "#21262d", textDecoration: "none", fontSize: 12, fontWeight: 700 }}>{item === "guide" ? "User Manual" : item === "privacy" ? "Privacy" : "Terms"}</Link>)}
           </nav>
         </header>
         <section style={{ padding: "clamp(2rem, 7vw, 5rem) 0 2rem" }}>

@@ -36,6 +36,7 @@ export default function TopBar() {
       return
     }
     setActivePanel("preview")
+    setPreviewPath(activeFile.path)
     setErrors([])
     setIsRunning(true)
     setPreviewResult(null)
@@ -80,6 +81,9 @@ export default function TopBar() {
       {activeFile && <><div className="topbar-divider" /><span className="topbar-breadcrumb">{activeFile.name}</span></>}
 
       <div className="topbar-actions">
+        <button className="btn btn-ghost" onClick={() => { window.location.href = "/guide" }} title="Open the complete User Manual" style={{ fontSize: 11, padding: "0.3rem 0.5rem" }}>
+          Manual
+        </button>
         {showRunControl && (
           <button className={`topbar-run-btn${isRunning ? " running" : ""}`} onClick={handleRun} title={isRunning ? "Stop execution" : `${runLabel} ${activeFile?.name}`}>
             {isRunning ? <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> : <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 11,6 2,11"/></svg>}
