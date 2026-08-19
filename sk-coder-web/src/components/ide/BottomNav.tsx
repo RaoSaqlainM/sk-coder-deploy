@@ -78,7 +78,11 @@ export default function BottomNav() {
 
   function handleNav(id: ActivePanel) {
     if (id === "files" && activePanel === "editor") {
-      setSidebarOpen(!sidebarOpen)
+      if (sidebarOpen) {
+        setSidebarOpen(false)
+        return
+      }
+      setActivePanel("files")
       return
     }
     if (id === "files") {

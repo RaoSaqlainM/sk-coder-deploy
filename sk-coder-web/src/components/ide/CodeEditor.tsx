@@ -77,6 +77,12 @@ export default function CodeEditor() {
       handleFormat()
     })
 
+    editor.onMouseDown((event) => {
+      if (event.event.detail !== 2) return
+      const state = useIDEStore.getState()
+      if (state.activePanel === "editor") state.setSidebarOpen(!state.sidebarOpen)
+    })
+
     monaco.editor.defineTheme("sk-dark", {
       base: "vs-dark",
       inherit: true,

@@ -1,4 +1,5 @@
 import type { FileNode } from "../types/ide"
+import { getMediaKind } from "./projectCapabilities"
 
 function flattenFiles(nodes: FileNode[]): Map<string, FileNode> {
   const map = new Map<string, FileNode>()
@@ -69,18 +70,18 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
   if (activePath) {
     const mediaNode = files.get(activePath)
     const mediaSource = mediaNode?.assetData
-    const mediaExtension = mediaNode?.name.split(".").pop()?.toLowerCase() || ""
-    const imageExtensions = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"])
-    const videoExtensions = new Set(["mp4", "webm", "ogv", "ogg", "mov"])
-    const audioExtensions = new Set(["mp3", "wav", "ogg", "oga", "webm", "m4a", "aac", "flac"])
-    if (mediaNode?.type === "file" && mediaSource && (imageExtensions.has(mediaExtension) || videoExtensions.has(mediaExtension) || audioExtensions.has(mediaExtension))) {
+    const mediaKind = mediaNode ? getMediaKind(mediaNode) : null
+    if (mediaNode?.type === "file" && mediaSource && mediaKind) {
       const safeName = mediaNode.name.replace(/[&<>"']/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value] || value))
-      const mediaElement = imageExtensions.has(mediaExtension)
+      const mediaElement = mediaKind === "image"
         ? `<img src="${mediaSource}" alt="${safeName}"/>`
-        : videoExtensions.has(mediaExtension)
-          ? `<video controls preload="metadata" src="${mediaSource}">Your browser cannot play this video.</video>`
-          : `<audio controls preload="metadata" src="${mediaSource}">Your browser cannot play this audio.</audio>`
+        : mediaKind === "video"
+          ? `<video controls preload="metadata" src="${mediaSource}">This browser cannot play this video file.</video>`
+          : `<audio controls preload="metadata" src="${mediaSource}">This browser cannot play this audio file.</audio>`
       return buildInlineHtml(`<main class="media-preview">${mediaElement}<p>${safeName}</p></main>`, "body{margin:0;min-height:100vh;background:#0d1117;color:#c9d1d9;font:13px system-ui;display:grid;place-items:center}.media-preview{display:grid;gap:12px;justify-items:center;padding:24px;box-sizing:border-box;width:100%;height:100vh}.media-preview img,.media-preview video{max-width:100%;max-height:calc(100vh - 74px);object-fit:contain;border-radius:8px;box-shadow:0 10px 32px rgba(0,0,0,.38)}.media-preview video{background:#000}.media-preview audio{width:min(560px,100%)}.media-preview p{margin:0;color:#8b949e}", "")
+    }
+    if (mediaNode?.type === "file" && mediaKind) {
+      return buildInlineHtml(`<main class="media-preview"><h2>Preview is not ready</h2><p>Import this file again so SK Coder can read it for preview.</p></main>`, "body{margin:0;min-height:100vh;background:#0d1117;color:#c9d1d9;font:13px system-ui;display:grid;place-items:center}.media-preview{display:grid;gap:12px;justify-items:center;padding:24px;box-sizing:border-box;width:100%;height:100vh}.media-preview h2,.media-preview p{margin:0;text-align:center}.media-preview p{color:#8b949e}", "")
     }
   }
 

@@ -1,4 +1,3 @@
-import { useLocation } from "wouter"
 import { useIDEStore } from "@/store/ideStore"
 import logoIcon from "@/assets/logo-icon.png"
 import { buildPreview } from "@/lib/previewBuilder"
@@ -13,7 +12,6 @@ export default function TopBar() {
     setActivePanel, setShowSettings, getActiveFile,
     setPreviewContent, setErrors, setPreviewResult,
   } = useIDEStore()
-  const [, navigate] = useLocation()
   const activeFile = getActiveFile()
   const fileCapability = activeFile ? getFileCapability(activeFile) : "none"
   const showRunControl = activePanel === "editor" && Boolean(activeFile) && fileCapability !== "none"
@@ -87,9 +85,6 @@ export default function TopBar() {
             {isRunning ? "Stop" : runLabel}
           </button>
         )}
-        <button className="btn-icon" onClick={() => navigate("/guide")} title="Open User Guide, Privacy and Terms">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c-.58 1.04-1.93 1.42-2.46 2.5-.2.39-.27.83-.27 1.25"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </button>
         <button className="btn-icon" onClick={() => setShowSettings(true)} title="Settings">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>

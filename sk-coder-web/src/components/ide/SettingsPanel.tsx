@@ -22,7 +22,7 @@ const NAV: NavItem[] = [
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
   },
   {
-    id: "ai", label: "SK-AI",
+    id: "ai", label: "AI Assistant",
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg>,
   },
   {
@@ -130,7 +130,7 @@ export default function SettingsPanel() {
       const status = await testApiKey(keyInput.trim())
       if (status === "valid") {
         updateAISettings({ apiKey: keyInput.trim(), keyStatus: "valid", usePuter: false })
-        toast.success("SK-AI connected!")
+        toast.success("AI Assistant connected!")
       } else if (status === "expired") {
         updateAISettings({ apiKey: keyInput.trim(), keyStatus: "expired" })
         toast.error("Key has no remaining credits")
@@ -154,7 +154,7 @@ export default function SettingsPanel() {
       if (puter.auth.isSignedIn()) {
         setPuterConnected(true)
         updateAISettings({ usePuter: true })
-        toast.success("Free SK-AI connected via Puter!")
+        toast.success("Free AI Assistant connected!")
       }
     } catch {
       toast.error("Puter sign-in was cancelled or failed")
@@ -304,14 +304,14 @@ export default function SettingsPanel() {
             {settingsTab === "ai" && (
               <>
                 <div className="settings-section">
-                  <div className="settings-section-title">Free SK-AI</div>
+                  <div className="settings-section-title">Free AI Assistant</div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: "0.75rem", lineHeight: 1.6 }}>
-                    Use SK-AI for free. Sign in once and stay connected across sessions.
+                    Connect the free option if it is available. You can also use your own AI key below.
                   </div>
                   {puterConnected || settings.ai.usePuter ? (
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.6rem 0.75rem", background: "rgba(40, 167, 69, 0.12)", border: "1px solid rgba(40, 167, 69, 0.3)", borderRadius: "var(--radius)", marginBottom: "0.5rem" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>Free SK-AI connected via Puter</span>
+                      <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>Free AI Assistant is connected</span>
                       <button className="btn btn-ghost" style={{ marginLeft: "auto", fontSize: 11, padding: "0.15rem 0.5rem" }}
                         onClick={() => { setPuterConnected(false); updateAISettings({ usePuter: false }) }}>
                         Disconnect
@@ -324,10 +324,10 @@ export default function SettingsPanel() {
                       disabled={puterConnecting}
                       style={{ width: "100%", justifyContent: "center", marginBottom: "0.5rem" }}
                     >
-                      {puterConnecting ? "Connecting..." : "Connect Free SK-AI (via Puter)"}
+                      {puterConnecting ? "Connecting..." : "Connect Free AI Assistant"}
                     </button>
                   )}
-                  <div className="settings-hint">Puter gives free access to AI models — no credit card required. Your session stays active until you log out from puter.com.</div>
+                  <div className="settings-hint">The free option needs an internet connection. You can disconnect it at any time.</div>
                 </div>
 
                 <div className="settings-section">
@@ -373,7 +373,7 @@ export default function SettingsPanel() {
                     <label>Auto-attach file context</label>
                     <Toggle checked={settings.ai.autoContext} onChange={(v) => updateAISettings({ autoContext: v })} />
                   </div>
-                  <div className="settings-hint">When on, the open file is sent with every message so SK-AI understands your code.</div>
+                  <div className="settings-hint">When this is on, the open file is shared with the assistant so it can help with that code.</div>
                 </div>
               </>
             )}
@@ -460,14 +460,14 @@ export default function SettingsPanel() {
                 <div className="settings-section">
                   <div className="settings-section-title">User Guide</div>
                   {[
-                    { icon: "📁", title: "Files and Editor", text: "Open Files from the bottom navigation. Selecting a file opens it in the Editor automatically. Use the three-dot menu for file actions and the Import button for files or a ZIP project." },
-                    { icon: "▶️", title: "Run and Results", text: "Run actions appear only for supported source files or detected projects. HTML opens Preview. Code results show the current file, output, problems, files produced, and run details together." },
-                    { icon: "📱", title: "Preview Sizes", text: "In Result & Preview, choose Mobile, Tablet, or Desktop. The selected frame is only a visual test size; it does not change your source files." },
-                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the full project terminal. Use it for folders, Node.js, packages, build tools, commands, and live program input when a live workspace is available. Swipe output to scroll; the mobile key row provides terminal keys." },
-                    { icon: "↔️", title: "More SK Shell Tabs", text: "Add another SK Shell when you need separate working folders or command history. Each full-shell tab keeps its own terminal state while working with the same workspace files." },
-                    { icon: "💬", title: "SK-AI and AI Terminal", text: "The assistant receives a bounded active-file-first workspace context. It proposes scoped edits, commands, and previews first. Nothing is changed, run, deleted, or opened until you approve each proposal." },
-                    { icon: "🕒", title: "Workspace retention", text: "Live workspaces can be kept for three days or scheduled for deletion in four hours. Browser source mirrors are separate and should be exported before clearing site data." },
-                    { icon: "🐙", title: "GitHub", text: "Use a restricted fine-grained token for selected repositories. Codespaces permissions are only needed when you manage Codespaces." },
+                    { icon: "📁", title: "Files and Editor", text: "Start in Files. Double-click a code file to open it beside Files. Double-click inside the editor to show or hide Files again." },
+                    { icon: "▶️", title: "Run and Results", text: "Use Run only when it appears. Your result shows in Preview. If code cannot run here, the app tells you clearly." },
+                    { icon: "🖼️", title: "Pictures, video, and sound", text: "Open a media file to preview it. Common pictures, videos, and sounds can play in Preview. Your browser decides which formats it can play." },
+                    { icon: "🖥️", title: "SK Shell", text: "SK Shell is the full terminal for folders, commands, and project work. It needs a ready workspace connection." },
+                    { icon: "💬", title: "AI Assistant", text: "SK Coder AI Assistant can explain your code and suggest changes. It asks before changing files, running code, or opening a preview." },
+                    { icon: "🕒", title: "Save your work", text: "Export important work as a ZIP. Clearing browser site data can remove files saved only in this browser." },
+                    { icon: "⚠️", title: "Simple limits", text: "Big projects, package installs, desktop apps, games, and unusual file formats may need SK Shell or another app. The app does not pretend they worked when they did not." },
+                    { icon: "🐙", title: "GitHub", text: "Use a small-permission token and choose only the repositories you want to use." },
                   ].map((item) => (
                     <div key={item.title} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
                       <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span>
@@ -482,17 +482,17 @@ export default function SettingsPanel() {
                 <div className="settings-section">
                   <div className="settings-section-title">Privacy Policy</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                    <p style={{ marginBottom: "0.6rem" }}>SK Coder keeps a browser source mirror for editing and export. Browser site-data clearing can remove that mirror, so export important projects as ZIP files.</p>
-                    <p style={{ marginBottom: "0.6rem" }}>When you use a live workspace, GitHub, or an AI provider, only the selected files or messages needed for that requested action are sent to that service. Run details explain the available capability after each action.</p>
-                    <p>Your API keys and GitHub tokens are stored by the browser for this application. Treat tokens as passwords, use an expiry, and give them the minimum permissions needed.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>Your browser keeps your local files. Download a ZIP before clearing browser data.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>When you choose GitHub, AI, or a live workspace action, only the files or words needed for that action are sent there.</p>
+                    <p>Your AI keys and GitHub tokens stay in this browser until you remove them. Treat them like passwords.</p>
                   </div>
                 </div>
 
                 <div className="settings-section">
                   <div className="settings-section-title">Terms of Use</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                    <p style={{ marginBottom: "0.6rem" }}>SK Coder is free to use. You may use it for personal and commercial projects. Do not use it to generate harmful content or violate the terms of any third-party service you connect.</p>
-                    <p>The app is provided as-is. Saqlain King is not responsible for data loss, API costs, or issues arising from third-party services.</p>
+                    <p style={{ marginBottom: "0.6rem" }}>Use SK Coder for your own work and follow the rules of any service you connect.</p>
+                    <p>Keep copies of important files. Extra services, such as AI providers and GitHub, have their own rules and costs.</p>
                   </div>
                 </div>
 
@@ -520,11 +520,6 @@ export default function SettingsPanel() {
                         <span>{link.label}</span>
                       </a>
                     ))}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.65rem", marginTop: "0.9rem" }}>
-                    <a href="/guide" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>User Guide</a>
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>Privacy</a>
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="settings-hint" style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
                   </div>
                 </div>
               </>

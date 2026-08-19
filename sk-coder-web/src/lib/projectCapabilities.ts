@@ -1,6 +1,7 @@
 import type { FileNode } from "@/types/ide"
 
 export type FileCapability = "preview" | "run" | "none"
+export type MediaKind = "image" | "video" | "audio"
 
 export type FolderCapability = {
   buildCommand?: string
@@ -13,9 +14,9 @@ const SOURCE_EXTENSIONS = new Set([
 ])
 
 const HTML_EXTENSIONS = new Set(["html", "htm"])
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"])
-const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogv", "ogg", "mov"])
-const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "webm", "m4a", "aac", "flac"])
+const IMAGE_EXTENSIONS = new Set(["png", "apng", "jpg", "jpeg", "jpe", "jfif", "gif", "webp", "svg", "svgz", "bmp", "ico", "cur", "avif", "tif", "tiff", "heic", "heif", "jxl"])
+const VIDEO_EXTENSIONS = new Set(["mp4", "m4v", "webm", "ogv", "ogg", "mov", "mkv", "avi", "wmv", "flv", "mpeg", "mpg", "3gp", "3g2", "ts", "mts", "m2ts"])
+const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "opus", "webm", "m4a", "aac", "flac", "wma", "aif", "aiff", "amr", "3gp"])
 
 export function extensionFor(name: string) {
   const last = name.lastIndexOf(".")
@@ -30,19 +31,32 @@ export function getFileCapability(node: FileNode): FileCapability {
 }
 
 export function isImagePreviewFile(node: FileNode): boolean {
-  return node.type === "file" && IMAGE_EXTENSIONS.has(extensionFor(node.name))
+  return getMediaKind(node) === "image"
 }
 
 export function isVideoPreviewFile(node: FileNode): boolean {
-  return node.type === "file" && VIDEO_EXTENSIONS.has(extensionFor(node.name))
+  return getMediaKind(node) === "video"
 }
 
 export function isAudioPreviewFile(node: FileNode): boolean {
-  return node.type === "file" && AUDIO_EXTENSIONS.has(extensionFor(node.name))
+  return getMediaKind(node) === "audio"
 }
 
 export function isDirectPreviewFile(node: FileNode): boolean {
-  return isImagePreviewFile(node) || isVideoPreviewFile(node) || isAudioPreviewFile(node)
+  return getMediaKind(node) !== null
+}
+
+export function getMediaKind(node: FileNode): MediaKind | null {
+  if (node.type !== "file") return null
+  const dataMime = node.assetData?.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase() || ""
+  if (dataMime.startsWith("image/")) return "image"
+  if (dataMime.startsWith("video/")) return "video"
+  if (dataMime.startsWith("audio/")) return "audio"
+  const extension = extensionFor(node.name)
+  if (IMAGE_EXTENSIONS.has(extension)) return "image"
+  if (VIDEO_EXTENSIONS.has(extension)) return "video"
+  if (AUDIO_EXTENSIONS.has(extension)) return "audio"
+  return null
 }
 
 export function previewLabelFor(node: FileNode): string {

@@ -211,7 +211,7 @@ export default function AIChatPanel() {
         })
 
         if (res.error === "invalid_key") {
-          addAIChatMessage({ role: "assistant", content: "Your API key appears invalid. Go to **Settings → SK-AI** and update your key." })
+          addAIChatMessage({ role: "assistant", content: "Your API key appears invalid. Go to **Settings → AI Assistant** and update your key." })
         } else if (res.error === "expired") {
           addAIChatMessage({ role: "assistant", content: "Your API usage limit has been reached. Please check your account." })
         } else if (res.error === "network_error") {
@@ -253,7 +253,7 @@ export default function AIChatPanel() {
               <path d="M9 9h.01M15 9h.01M9 15h6" />
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>SK-AI</span>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>SK Coder AI Assistant</span>
           {usePuter && (
             <span className="badge badge-green" style={{ fontSize: 9 }}>Free via Puter</span>
           )}
@@ -265,7 +265,7 @@ export default function AIChatPanel() {
           <button
             className="btn-icon"
             onClick={() => { setSettingsTab("ai"); setShowSettings(true) }}
-            title="SK-AI Settings"
+            title="AI Assistant Settings"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/>
@@ -319,7 +319,7 @@ export default function AIChatPanel() {
         >
           <div style={{ fontWeight: 600, marginBottom: "0.2rem" }}>Add your API key to start</div>
           <div style={{ fontSize: 11, opacity: 0.8 }}>
-            Works with Gemini, OpenAI, Groq, Anthropic, OpenRouter — or enable Free SK-AI via Puter →
+            Use your own AI key, or choose the free option in Settings →
           </div>
         </div>
       )}
@@ -333,7 +333,7 @@ export default function AIChatPanel() {
                 <path d="M9 9h.01M15 9h.01M9 15h6" />
               </svg>
             </div>
-            <p style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>SK Coder AI ready</p>
+            <p style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>SK Coder AI Assistant</p>
             <p style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 220, textAlign: "center" }}>
               {usePuter ? "Powered by Free Puter AI — no API key needed." : "Ask about your code — bugs, explanations, new features, anything."}
             </p>
@@ -423,10 +423,10 @@ export default function AIChatPanel() {
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder={noKey ? "Add API key or enable Free SK-AI in Settings..." : "Describe the task, paste code, or request an approved workspace action…"}
+            placeholder={noKey ? "Add an AI key or enable the free AI Assistant in Settings..." : "Describe the task, paste code, or request an approved workspace action…"}
             disabled={aiTyping}
             rows={1}
-            aria-label="SK-AI message"
+            aria-label="SK Coder AI Assistant message"
           />
           <button
             className="ai-send-btn"

@@ -126,3 +126,8 @@
 - [x] Restore a user-controlled combined Explorer-and-Editor workspace view through the requested double-activation interaction without changing the Files-first default view.
 - [x] Extend the unified Preview area so image, video, and audio files open in direct browser-native viewers and remain usable as local HTML project assets.
 - [x] Validate direct media playback and local asset rendering inside HTML Preview at mobile and desktop layouts.
+- [x] Expand media recognition and preview routing for common browser-supported image, video, and audio extensions, with automatic detection and plain-language unsupported notices.
+- [x] Restrict the Explorer-and-Editor combined view to intentional double-click gestures on an editable Explorer file or the editor surface, preserving a separate Files-first launch.
+- [x] Rename the AI workspace surface to SK Coder AI Assistant.
+- [x] Remove standalone Guide, Privacy, and Terms navigation and provide only simple, child-friendly guidance, privacy, terms, and limitations inside Settings.
+- [x] Retest all IDE panels, media previews, combined-view gestures, AI labels, Settings guidance, and build outputs after the corrected implementation.

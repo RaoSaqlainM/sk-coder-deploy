@@ -81,7 +81,7 @@ function FileIcon({ node, expanded }: { node: FileNode; expanded?: boolean }) {
     ...EXT_COLORS,
     h: "#555555", gitignore: "var(--text-muted)", env: "var(--orange)", toml: "var(--orange)",
     png: "#3d90ff", jpg: "#3d90ff", jpeg: "#3d90ff", gif: "#3d90ff", svg: "#ffb13b",
-    mp4: "#a78bfa", webm: "#a78bfa", ogv: "#a78bfa", mov: "#a78bfa", mp3: "#38bdf8", wav: "#38bdf8", ogg: "#38bdf8", m4a: "#38bdf8", aac: "#38bdf8", flac: "#38bdf8",
+    apng: "#3d90ff", webp: "#3d90ff", avif: "#3d90ff", bmp: "#3d90ff", ico: "#3d90ff", tif: "#3d90ff", tiff: "#3d90ff", heic: "#3d90ff", heif: "#3d90ff", mp4: "#a78bfa", m4v: "#a78bfa", webm: "#a78bfa", ogv: "#a78bfa", mov: "#a78bfa", mkv: "#a78bfa", avi: "#a78bfa", wmv: "#a78bfa", flv: "#a78bfa", mp3: "#38bdf8", wav: "#38bdf8", ogg: "#38bdf8", oga: "#38bdf8", opus: "#38bdf8", m4a: "#38bdf8", aac: "#38bdf8", flac: "#38bdf8", wma: "#38bdf8", aiff: "#38bdf8",
     txt: "var(--text-muted)", astro: "#ff5a03",
   }
   const color = colors[ext] || "var(--text-muted)"
