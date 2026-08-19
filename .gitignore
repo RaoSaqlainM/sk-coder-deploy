@@ -36,5 +36,7 @@ dist/
 __pycache__/
 *.py[cod]
 *$py.class
-api-server/backend_data/
-api-server/workspace-sessions/
+backend/backend_data/
+backend/workspace-sessions/
+backend/.registry/
+frontend/.vite/
