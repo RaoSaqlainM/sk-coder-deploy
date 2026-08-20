@@ -1056,7 +1056,10 @@ export default function MultiTerminal() {
                 const sessionId = workspaceSessionIdRef.current;
                 if (!sessionId || !window.confirm("Schedule deletion with a one-hour undo period?"))
                     return;
-                void scheduleWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
+                void scheduleWorkspaceDelete(sessionId).then((lifecycle) => {
+                    tabs.forEach((tab) => clearTerminalHistory(tab.id));
+                    setWorkspaceLifecycle(lifecycle);
+                }).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
             }}>Delete</button>
             </>)}
           <button className="btn-icon" onClick={() => {
