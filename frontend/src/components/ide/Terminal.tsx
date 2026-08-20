@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useIDEStore } from "@/store/ideStore";
 import { execute, type ExecResponse } from "@/lib/executorChain";
-import { cancelWorkspaceDelete, createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner";
+import { beginWorkspaceStage, cancelWorkspaceDelete, commitWorkspaceStage, createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, getWorkspaceStageStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, type WorkspaceFilePayload, type WorkspaceLifecycle, uploadWorkspaceStageChunk } from "@/lib/backendRunner";
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient";
 import { parseErrors } from "@/components/ide/ErrorPanel";
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy";
@@ -96,20 +96,12 @@ function getChildrenAt(tree: FileNode[], path: string): FileNode[] {
     const node = findNodeAtPath(tree, path);
     return node?.children || [];
 }
-const MAX_TERMINAL_SNAPSHOT_BYTES = 6 * 1024 * 1024;
-const MAX_TERMINAL_ASSET_BYTES = 4 * 1024 * 1024;
-async function blobToBase64(blob: Blob): Promise<string> {
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not encode a local workspace asset."));
-        reader.onerror = () => reject(new Error("Could not encode a local workspace asset."));
-        reader.readAsDataURL(blob);
-    });
-    return dataUrl.substring(dataUrl.indexOf(",") + 1);
-}
-async function collectWorkspaceFiles(nodes: FileNode[]): Promise<WorkspaceFilePayload[]> {
-    const files: WorkspaceFilePayload[] = [];
-    const snapshot = { bytes: 0 };
+type StageSource = {
+    path: string;
+    blob: Blob;
+};
+async function collectWorkspaceStageSources(nodes: FileNode[]): Promise<StageSource[]> {
+    const files: StageSource[] = [];
     async function collect(items: FileNode[]): Promise<void> {
         for (const node of items) {
             if (node.type === "file") {
@@ -117,18 +109,12 @@ async function collectWorkspaceFiles(nodes: FileNode[]): Promise<WorkspaceFilePa
                     const blob = await loadBrowserBlob(node.assetBlobId);
                     if (!blob)
                         throw new Error(`${node.name} is no longer available in browser storage. Re-import it before using SK Shell.`);
-                    if (blob.size > MAX_TERMINAL_ASSET_BYTES)
-                        throw new Error(`${node.name} is ${Math.ceil(blob.size / 1024 / 1024)} MB. SK Shell snapshots support local binary assets up to 4 MB; keep larger media in browser preview or reduce the asset.`);
-                    snapshot.bytes += blob.size;
-                    files.push({ path: node.path, content: await blobToBase64(blob), encoding: "base64" });
+                    files.push({ path: node.path, blob });
                 }
                 else {
                     const content = node.content ?? "";
-                    snapshot.bytes += new TextEncoder().encode(content).byteLength;
-                    files.push({ path: node.path, content });
+                    files.push({ path: node.path, blob: new Blob([content], { type: "text/plain;charset=utf-8" }) });
                 }
-                if (snapshot.bytes > MAX_TERMINAL_SNAPSHOT_BYTES)
-                    throw new Error("The selected browser project is too large for one temporary SK Shell snapshot. Keep large assets local or use a smaller project subset.");
             }
             if (node.children)
                 await collect(node.children);
@@ -136,6 +122,38 @@ async function collectWorkspaceFiles(nodes: FileNode[]): Promise<WorkspaceFilePa
     }
     await collect(nodes);
     return files;
+}
+async function stageProjectToWorkspace(sessionId: string, nodes: FileNode[], onProgress: (completed: number, total: number) => void) {
+    const sources = await collectWorkspaceStageSources(nodes);
+    let stage = await beginWorkspaceStage(sessionId, sources.map((source) => ({ path: source.path, size: source.blob.size })));
+    const byPath = new Map(sources.map((source) => [source.path, source]));
+    const total = sources.reduce((sum, source) => sum + source.blob.size, 0);
+    let completed = 0;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            completed = 0;
+            for (const file of stage.files) {
+                const source = byPath.get(file.path);
+                if (!source)
+                    throw new Error(`Workspace file changed during staging: ${file.path}`);
+                const missing = new Set(file.missingOffsets);
+                for (let offset = 0; offset < file.size; offset += stage.chunkBytes) {
+                    const chunk = source.blob.slice(offset, Math.min(file.size, offset + stage.chunkBytes));
+                    if (missing.has(offset))
+                        await uploadWorkspaceStageChunk(sessionId, stage.stageId, file.path, offset, chunk);
+                    completed += chunk.size;
+                    onProgress(completed, total);
+                }
+            }
+            await commitWorkspaceStage(sessionId, stage.stageId);
+            return;
+        }
+        catch (error) {
+            if (attempt === 1)
+                throw error;
+            stage = await getWorkspaceStageStatus(sessionId, stage.stageId);
+        }
+    }
 }
 function collectTextWorkspaceFiles(nodes: FileNode[], files: WorkspaceFilePayload[] = []): WorkspaceFilePayload[] {
     for (const node of nodes) {
@@ -567,7 +585,15 @@ export default function MultiTerminal() {
                     if (target === "/" || node?.type === "folder")
                         updateState(tabId, { cwd: target });
                 }
-                await syncWorkspaceFiles(workspaceSessionIdRef.current, await collectWorkspaceFiles(fileTree));
+                let reportedPercent = -1;
+                addLine(tabId, "info", "Staging workspace files for SK Shell…");
+                await stageProjectToWorkspace(workspaceSessionIdRef.current, fileTree, (done, total) => {
+                    const percent = total === 0 ? 100 : Math.floor(done / total * 100);
+                    if (percent === 100 || percent >= reportedPercent + 25) {
+                        reportedPercent = percent;
+                        addLine(tabId, "info", `Staging workspace: ${percent}%`);
+                    }
+                });
                 terminalSocket.sendCommand(input);
                 return;
             }

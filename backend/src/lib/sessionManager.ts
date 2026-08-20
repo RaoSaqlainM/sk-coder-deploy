@@ -27,7 +27,7 @@ export type WorkspaceFile = {
 export type WorkspaceStageFile = {
     path: string;
     size: number;
-    sha256: string;
+    sha256?: string;
     revision?: string;
 };
 type WorkspaceStage = {
@@ -244,11 +244,11 @@ export async function beginWorkspaceStage(sessionId: string, requestedFiles: Wor
     const files = new Map<string, WorkspaceStageFile>();
     for (const item of requestedFiles) {
         const path = stageRelativePath(item.path);
-        if (!Number.isSafeInteger(item.size) || item.size < 0 || !/^[a-f0-9]{64}$/i.test(item.sha256))
-            throw new Error("A staged file requires a valid size and SHA-256 checksum.");
+        if (!Number.isSafeInteger(item.size) || item.size < 0 || (item.sha256 !== undefined && !/^[a-f0-9]{64}$/i.test(item.sha256)))
+            throw new Error("A staged file requires a valid size and optional SHA-256 checksum.");
         if (files.has(path))
             throw new Error("The staging manifest contains duplicate file paths.");
-        files.set(path, { path, size: item.size, sha256: item.sha256.toLowerCase(), revision: item.revision });
+        files.set(path, { path, size: item.size, sha256: item.sha256?.toLowerCase(), revision: item.revision });
     }
     const id = randomUUID();
     const stage: WorkspaceStage = {
@@ -308,7 +308,11 @@ export async function commitWorkspaceStage(sessionId: string, stageId: string) {
         if (missingOffsets(file, completed).length > 0)
             throw new Error(`Staging file is incomplete: ${file.path}`);
         const staged = resolve(stage.rootPath, file.path);
-        if ((await stat(staged)).size !== file.size || (await hashFile(staged)) !== file.sha256)
+        if (file.size === 0) {
+            await mkdir(dirname(staged), { recursive: true, mode: 0o700 });
+            await writeFile(staged, "");
+        }
+        if ((await stat(staged)).size !== file.size || (file.sha256 !== undefined && (await hashFile(staged)) !== file.sha256))
             throw new Error(`Staging verification failed: ${file.path}`);
     }
     for (const file of stage.files.values()) {

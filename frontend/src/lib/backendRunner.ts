@@ -29,7 +29,7 @@ export type WorkspaceFilePayload = {
 export type WorkspaceStageFile = {
     path: string;
     size: number;
-    sha256: string;
+    sha256?: string;
     revision?: string;
 };
 export type WorkspaceStageStatus = {
@@ -133,10 +133,6 @@ export async function syncWorkspaceFiles(sessionId: string, files: WorkspaceFile
             error?: string;
         }).error || response.statusText);
 }
-export async function sha256Blob(blob: Blob) {
-    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-    return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
-}
 export async function beginWorkspaceStage(sessionId: string, files: WorkspaceStageFile[], stageId?: string) {
     return workspaceRequest<WorkspaceStageStatus>(`/execute/sessions/${encodeURIComponent(sessionId)}/stage/manifest`, "POST", { files, ...(stageId ? { stageId } : {}) });
 }
@@ -144,7 +140,6 @@ export async function getWorkspaceStageStatus(sessionId: string, stageId: string
     return workspaceRequest<WorkspaceStageStatus>(`/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}`, "GET");
 }
 export async function uploadWorkspaceStageChunk(sessionId: string, stageId: string, path: string, offset: number, chunk: Blob) {
-    const checksum = await sha256Blob(chunk);
     const response = await fetch(`${BASE}/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}/chunk`, {
         method: "PUT",
         headers: {
@@ -152,7 +147,6 @@ export async function uploadWorkspaceStageChunk(sessionId: string, stageId: stri
             "X-Device-Id": getDeviceId(),
             "X-Stage-Path": path,
             "X-Stage-Offset": String(offset),
-            "X-Stage-Checksum": checksum,
         },
         body: chunk,
         signal: AbortSignal.timeout(60000),
