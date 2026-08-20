@@ -123,19 +123,6 @@ async function collectWorkspaceStageSources(nodes: FileNode[]): Promise<StageSou
     await collect(nodes);
     return files;
 }
-function workspaceStageSignature(nodes: FileNode[]): string {
-    const entries: string[] = [];
-    function collect(items: FileNode[]) {
-        for (const node of items) {
-            if (node.type === "file")
-                entries.push(node.assetBlobId ? `${node.path}:${node.assetBlobId}:${node.assetSize ?? 0}` : `${node.path}:${node.content ?? ""}`);
-            if (node.children)
-                collect(node.children);
-        }
-    }
-    collect(nodes);
-    return entries.join("\u0000");
-}
 async function stageProjectToWorkspace(sessionId: string, nodes: FileNode[], onProgress: (completed: number, total: number) => void) {
     const sources = await collectWorkspaceStageSources(nodes);
     let stage = await beginWorkspaceStage(sessionId, sources.map((source) => ({ path: source.path, size: source.blob.size })));
@@ -337,7 +324,7 @@ export default function MultiTerminal() {
     const inputRef = useRef<HTMLInputElement>(null);
     const terminalSocketsRef = useRef(new Map<string, ReturnType<typeof createTerminalWebSocket>>());
     const workspaceSessionIdRef = useRef<string | null>(null);
-    const workspaceStageSignatureRef = useRef<string | null>(null);
+    const workspaceStagedTreeRef = useRef<FileNode[] | null>(null);
     const terminalErrorMessagesRef = useRef(new Set<string>());
     const stickToOutputEndRef = useRef(true);
     const activeState = tabStates[activeTab] ?? initState("shell");
@@ -370,7 +357,7 @@ export default function MultiTerminal() {
                 terminalErrorMessagesRef.current.delete(tabId);
                 setWorkspaceConnection("connected");
                 workspaceSessionIdRef.current = sessionId;
-                workspaceStageSignatureRef.current = null;
+                workspaceStagedTreeRef.current = null;
                 localStorage.setItem("sk-coder-workspace-session-id", sessionId);
                 addLine(tabId, "success", savedSessionId ? "Connected to shared isolated workspace session." : "Connected to isolated workspace session.");
                 void getWorkspaceLifecycle(sessionId).then(setWorkspaceLifecycle).catch(() => setWorkspaceLifecycle(null));
@@ -394,7 +381,7 @@ export default function MultiTerminal() {
                 if (savedSessionId) {
                     localStorage.removeItem("sk-coder-workspace-session-id");
                     workspaceSessionIdRef.current = null;
-                    workspaceStageSignatureRef.current = null;
+                    workspaceStagedTreeRef.current = null;
                     connectShell(tabId, null);
                     return;
                 }
@@ -601,8 +588,7 @@ export default function MultiTerminal() {
                     if (target === "/" || node?.type === "folder")
                         updateState(tabId, { cwd: target });
                 }
-                const signature = workspaceStageSignature(fileTree);
-                if (workspaceStageSignatureRef.current !== signature) {
+                if (workspaceStagedTreeRef.current !== fileTree) {
                     let reportedPercent = -1;
                     addLine(tabId, "info", "Staging workspace files for SK Shell…");
                     await stageProjectToWorkspace(workspaceSessionIdRef.current, fileTree, (done, total) => {
@@ -612,7 +598,7 @@ export default function MultiTerminal() {
                             addLine(tabId, "info", `Staging workspace: ${percent}%`);
                         }
                     });
-                    workspaceStageSignatureRef.current = signature;
+                    workspaceStagedTreeRef.current = fileTree;
                 }
                 terminalSocket.sendCommand(input);
                 return;
