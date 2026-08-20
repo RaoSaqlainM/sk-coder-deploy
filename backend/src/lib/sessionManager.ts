@@ -32,6 +32,7 @@ function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS, stdi
         let stdout = "";
         let stderr = "";
         let timedOut = false;
+        proc.stdin.on("error", () => undefined);
         const timer = setTimeout(() => {
             timedOut = true;
             proc.kill("SIGTERM");

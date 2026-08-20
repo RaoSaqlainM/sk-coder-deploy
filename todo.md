@@ -57,3 +57,4 @@
 - [ ] Remove only the temporary verifier workspace sessions that exhausted the current AWS active-session cap, then confirm a new SK Shell session can start.
 - [x] Reconcile and safely clean stale runtime containers when the backend restarts so lost in-memory session records cannot leave capacity-consuming orphan sessions behind.
 - [x] Preserve browser-persistent source work when the constrained cloud workspace reaches its quota while retaining controlled temporary SK Shell and language-runner execution capacity.
+- [x] Diagnose and repair the ccafc81 regression causing the live `/execute/runtimes` endpoint to return a 502 response after the capacity update.
