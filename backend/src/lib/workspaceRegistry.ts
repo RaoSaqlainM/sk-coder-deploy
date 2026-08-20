@@ -142,3 +142,6 @@ export async function markWorkspaceDeleted(id: string) {
 export async function listExpiredWorkspaceRecords(now = Date.now()) {
     return (await readRegistry()).records.filter((record) => record.state !== "deleted" && record.expiresAt <= now);
 }
+export async function listScheduledWorkspaceRecords() {
+    return (await readRegistry()).records.filter((record) => record.state === "scheduled-delete");
+}

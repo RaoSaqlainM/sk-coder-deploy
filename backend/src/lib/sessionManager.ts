@@ -3,7 +3,7 @@ import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { COMMAND_TIMEOUT_MS, RUNTIME_IMAGE, SESSION_MAX_BYTES, SESSION_MAX_COUNT, SESSION_TTL_HOURS, WORKSPACE_MAX_BYTES, WORKSPACE_ROOT, WORKSPACE_SAFETY_RESERVE_BYTES } from "./backendConfig.js";
-import { cancelWorkspaceDelete, createWorkspaceRecord, getWorkspaceRecord, incrementWorkspaceRevision, listExpiredWorkspaceRecords, markWorkspaceDeleted, scheduleWorkspaceDelete, setWorkspaceRetention, touchWorkspaceRecord, type RetentionMode } from "./workspaceRegistry.js";
+import { cancelWorkspaceDelete, createWorkspaceRecord, getWorkspaceRecord, incrementWorkspaceRevision, listExpiredWorkspaceRecords, listScheduledWorkspaceRecords, markWorkspaceDeleted, scheduleWorkspaceDelete, setWorkspaceRetention, touchWorkspaceRecord, type RetentionMode } from "./workspaceRegistry.js";
 export type CommandResult = {
     stdout: string;
     stderr: string;
@@ -100,6 +100,7 @@ export async function createWorkspaceSession(options?: {
     if (!(await ensureDockerReady()))
         throw new Error("The isolated runtime service is not available.");
     await removeExpiredWorkspaceSessions();
+    await suspendScheduledWorkspaceRuntimes();
     if (await activeRuntimeCount() >= SESSION_MAX_COUNT)
         throw new Error("The server has reached its active workspace limit.");
     await mkdir(WORKSPACE_ROOT, { recursive: true, mode: 0o700 });
@@ -232,6 +233,7 @@ export function terminateInteractiveTerminal(proc: ChildProcess) {
 export async function workspaceStatus() {
     startCleanup();
     await removeExpiredWorkspaceSessions();
+    await suspendScheduledWorkspaceRuntimes();
     const [disk, activeSessions] = await Promise.all([
         run("df", ["-B1", "--output=size,used,avail", WORKSPACE_ROOT], 5000),
         activeRuntimeCount(),
@@ -297,17 +299,25 @@ async function removeExpiredWorkspaceSessions() {
     for (const record of await listExpiredWorkspaceRecords())
         await closeWorkspaceSession(record.id);
 }
+async function suspendScheduledWorkspaceRuntimes() {
+    for (const record of await listScheduledWorkspaceRecords()) {
+        sessions.delete(record.id);
+        await run("docker", ["stop", containerNameFor(record.id)], 10000);
+    }
+}
 function startCleanup() {
     if (cleanupStarted)
         return;
     cleanupStarted = true;
     void removeExpiredWorkspaceSessions();
+    void suspendScheduledWorkspaceRuntimes();
     const timer = setInterval(async () => {
         const cutoff = Date.now() - SESSION_TTL_HOURS * 60 * 60 * 1000;
         for (const session of sessions.values())
             if (session.lastUsedAt < cutoff)
                 await closeWorkspaceSession(session.id);
         await removeExpiredWorkspaceSessions();
+        await suspendScheduledWorkspaceRuntimes();
     }, 5 * 60 * 1000);
     timer.unref();
 }
