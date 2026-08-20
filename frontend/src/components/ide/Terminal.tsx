@@ -7,6 +7,7 @@ import { parseErrors } from "@/components/ide/ErrorPanel";
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy";
 import type { FileNode, AIChatMessage } from "@/types/ide";
 import { buildPreview } from "@/lib/previewBuilder";
+import { loadBrowserBlob } from "@/lib/browserStorage";
 declare global {
     interface Window {
         puter?: {
@@ -95,13 +96,53 @@ function getChildrenAt(tree: FileNode[], path: string): FileNode[] {
     const node = findNodeAtPath(tree, path);
     return node?.children || [];
 }
-function collectWorkspaceFiles(nodes: FileNode[]): WorkspaceFilePayload[] {
+const MAX_TERMINAL_SNAPSHOT_BYTES = 6 * 1024 * 1024;
+const MAX_TERMINAL_ASSET_BYTES = 4 * 1024 * 1024;
+async function blobToBase64(blob: Blob): Promise<string> {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not encode a local workspace asset."));
+        reader.onerror = () => reject(new Error("Could not encode a local workspace asset."));
+        reader.readAsDataURL(blob);
+    });
+    return dataUrl.substring(dataUrl.indexOf(",") + 1);
+}
+async function collectWorkspaceFiles(nodes: FileNode[]): Promise<WorkspaceFilePayload[]> {
     const files: WorkspaceFilePayload[] = [];
+    const snapshot = { bytes: 0 };
+    async function collect(items: FileNode[]): Promise<void> {
+        for (const node of items) {
+            if (node.type === "file") {
+                if (node.assetBlobId) {
+                    const blob = await loadBrowserBlob(node.assetBlobId);
+                    if (!blob)
+                        throw new Error(`${node.name} is no longer available in browser storage. Re-import it before using SK Shell.`);
+                    if (blob.size > MAX_TERMINAL_ASSET_BYTES)
+                        throw new Error(`${node.name} is ${Math.ceil(blob.size / 1024 / 1024)} MB. SK Shell snapshots support local binary assets up to 4 MB; keep larger media in browser preview or reduce the asset.`);
+                    snapshot.bytes += blob.size;
+                    files.push({ path: node.path, content: await blobToBase64(blob), encoding: "base64" });
+                }
+                else {
+                    const content = node.content ?? "";
+                    snapshot.bytes += new TextEncoder().encode(content).byteLength;
+                    files.push({ path: node.path, content });
+                }
+                if (snapshot.bytes > MAX_TERMINAL_SNAPSHOT_BYTES)
+                    throw new Error("The selected browser project is too large for one temporary SK Shell snapshot. Keep large assets local or use a smaller project subset.");
+            }
+            if (node.children)
+                await collect(node.children);
+        }
+    }
+    await collect(nodes);
+    return files;
+}
+function collectTextWorkspaceFiles(nodes: FileNode[], files: WorkspaceFilePayload[] = []): WorkspaceFilePayload[] {
     for (const node of nodes) {
-        if (node.type === "file")
+        if (node.type === "file" && !node.assetBlobId)
             files.push({ path: node.path, content: node.content ?? "" });
         if (node.children)
-            files.push(...collectWorkspaceFiles(node.children));
+            collectTextWorkspaceFiles(node.children, files);
     }
     return files;
 }
@@ -526,7 +567,7 @@ export default function MultiTerminal() {
                     if (target === "/" || node?.type === "folder")
                         updateState(tabId, { cwd: target });
                 }
-                await syncWorkspaceFiles(workspaceSessionIdRef.current, collectWorkspaceFiles(fileTree));
+                await syncWorkspaceFiles(workspaceSessionIdRef.current, await collectWorkspaceFiles(fileTree));
                 terminalSocket.sendCommand(input);
                 return;
             }
@@ -786,7 +827,7 @@ export default function MultiTerminal() {
             return { ...prev, [tabId]: { ...cur, lines: [...cur.lines, { id: thinkingId, type: "ai-thinking" as const, content: "Thinking..." }] } };
         });
         const activeFile = getActiveFile();
-        const workspaceFiles = collectWorkspaceFiles(fileTree).slice(0, 8);
+        const workspaceFiles = collectTextWorkspaceFiles(fileTree).slice(0, 8);
         const systemPrompt = buildSystemPrompt({
             activeFilePath: activeFile?.path,
             activeFileContent: autoContext ? activeFile?.content : undefined,

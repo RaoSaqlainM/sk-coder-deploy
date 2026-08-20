@@ -24,6 +24,7 @@ export type WorkspaceLifecycle = {
 export type WorkspaceFilePayload = {
     path: string;
     content: string;
+    encoding?: "utf8" | "base64";
 };
 function getDeviceId(): string {
     let id = localStorage.getItem("sk-device-id");

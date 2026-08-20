@@ -21,6 +21,7 @@ export type WorkspaceSession = {
 export type WorkspaceFile = {
     path: string;
     content: string;
+    encoding?: "utf8" | "base64";
 };
 const sessions = new Map<string, WorkspaceSession>();
 let dockerReady: boolean | null = null;
@@ -158,6 +159,8 @@ export async function syncWorkspaceFiles(id: string, files: WorkspaceFile[]) {
     for (const file of files) {
         if (typeof file.path !== "string" || typeof file.content !== "string")
             throw new Error("Invalid workspace file payload.");
+        if (file.encoding && file.encoding !== "utf8" && file.encoding !== "base64")
+            throw new Error("Unsupported workspace file encoding.");
         const requested = safeRelativePath(file.path);
         if (requested === ".")
             throw new Error("A workspace file path is required.");
@@ -165,7 +168,7 @@ export async function syncWorkspaceFiles(id: string, files: WorkspaceFile[]) {
         if (relative(session.workspacePath, target).startsWith(".."))
             throw new Error("Workspace path escapes the session root.");
         await mkdir(dirname(target), { recursive: true, mode: 0o777 });
-        await writeFile(target, file.content, "utf8");
+        await writeFile(target, file.encoding === "base64" ? Buffer.from(file.content, "base64") : file.content, file.encoding === "base64" ? undefined : "utf8");
     }
     await checkSize(session.workspacePath, SESSION_MAX_BYTES, "Workspace storage limit reached.");
     await incrementWorkspaceRevision(id);

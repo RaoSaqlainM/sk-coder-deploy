@@ -51,6 +51,7 @@
 - [x] Add quota-aware browser import preflight, persistent-storage requests, and clear large-source failure handling before importing files.
 - [x] Keep imported media as IndexedDB blobs and preserve browser-local image, video, audio, PDF, and HTML-project previews without base64 expansion.
 - [x] Clear local terminal history when the user schedules full workspace deletion so terminal traces do not outlive the cleanup request.
+- [x] Limit temporary SK Shell snapshots to 6 MB total with individual binary assets capped at 4 MB, preserving larger browser-held assets for local preview only.
 - [ ] Produce an honest runtime classification for requested languages, distinguishing real runnable support, preview/edit-only support, and toolchains requiring an expanded server image.
 - [ ] Replace the expired temporary tunnel values in Vercel with https://partnerships-smile-thu-sierra.trycloudflare.com and retest the live frontend connection.
 - [ ] Verify whether https://sk-code.vercel.app is deploying the intended frontend-only repository and contains the current temporary API and WebSocket endpoint values.

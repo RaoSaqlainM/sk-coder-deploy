@@ -72,8 +72,9 @@ router.post("/execute/sessions/:id/files", async (req, res) => {
             const item = file as {
                 path?: unknown;
                 content?: unknown;
+                encoding?: unknown;
             };
-            return { path: String(item.path ?? ""), content: String(item.content ?? "") };
+            return { path: String(item.path ?? ""), content: String(item.content ?? ""), encoding: item.encoding === "base64" ? "base64" as const : "utf8" as const };
         }));
         res.status(204).end();
     }
