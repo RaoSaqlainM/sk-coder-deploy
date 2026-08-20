@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { beginWorkspaceStage, cancelWorkspaceDeletion, commitWorkspaceStage, createWorkspaceSession, getWorkspaceLifecycle, getWorkspaceStageStatus, removeWorkspaceStage, runCodeInWorkspace, runEphemeralCode, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus, writeWorkspaceStageChunk } from "../lib/sessionManager.js";
+import { beginWorkspaceStage, cancelWorkspaceDeletion, commitWorkspaceStage, createWorkspaceSession, getWorkspaceLifecycle, getWorkspaceStageStatus, recordWorkspaceActivity, removeWorkspaceStage, runCodeInWorkspace, runEphemeralCode, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus, writeWorkspaceStageChunk } from "../lib/sessionManager.js";
 import type { RetentionMode } from "../lib/workspaceRegistry.js";
 import { installedRuntimes } from "../lib/runtimeRegistry.js";
 const router = Router();
@@ -29,7 +29,7 @@ router.get("/execute/sessions/:id", async (req, res) => {
 });
 router.post("/execute/sessions/:id/heartbeat", async (req, res) => {
     try {
-        const lifecycle = await getWorkspaceLifecycle(req.params.id);
+        const lifecycle = await recordWorkspaceActivity(req.params.id);
         res.json({ ...lifecycle, tier: "oracle-workspace" });
     }
     catch (error) {

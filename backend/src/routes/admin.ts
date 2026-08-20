@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { Router } from "express";
-import { workspaceStatus } from "../lib/sessionManager.js";
+import { getWorkspaceLifecycle, scheduleWorkspaceDeletion, workspaceStatus } from "../lib/sessionManager.js";
 import { listWorkspaceRecords } from "../lib/workspaceRegistry.js";
 const router = Router();
 function isAuthorized(value: unknown) {
@@ -48,5 +48,17 @@ router.get("/admin/workspaces", async (_req, res) => {
             revision: record.revision,
         })),
     });
+});
+router.post("/admin/workspaces/:id/schedule-delete", async (req, res) => {
+    const id = req.params.id;
+    if (req.body?.confirmWorkspaceId !== id)
+        return res.status(400).json({ error: "Confirm the exact workspace ID before scheduling deletion." });
+    const record = await getWorkspaceLifecycle(id).catch(() => null);
+    if (!record || record.state !== "active")
+        return res.status(404).json({ error: "Active workspace not found." });
+    if (Date.now() - record.lastHeartbeatAt < 15 * 60 * 1000)
+        return res.status(409).json({ error: "Workspace is recently active and cannot be scheduled for administrator cleanup." });
+    const lifecycle = await scheduleWorkspaceDeletion(id);
+    res.json({ lifecycle, message: "Inactive workspace is scheduled for deletion in four hours and can still be undone by its user." });
 });
 export default router;

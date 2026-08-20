@@ -412,6 +412,12 @@ export async function getWorkspaceLifecycle(id: string) {
         throw new Error("Workspace session not found or expired.");
     return record;
 }
+export async function recordWorkspaceActivity(id: string) {
+    const record = await touchWorkspaceRecord(id);
+    if (!record)
+        throw new Error("Workspace session not found or expired.");
+    return record;
+}
 export async function updateWorkspaceRetention(id: string, retentionMode: RetentionMode) {
     const record = await setWorkspaceRetention(id, retentionMode);
     if (!record)
