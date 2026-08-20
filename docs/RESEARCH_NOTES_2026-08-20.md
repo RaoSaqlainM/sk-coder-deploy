@@ -83,3 +83,13 @@ Sources:
 - https://developer.mozilla.org/en-US/docs/Web/API/Blob/stream
 - https://developer.mozilla.org/en-US/docs/Web/API/Blob/slice
 - https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria
+
+## Render Hosting Assessment
+
+Render can run Docker web services with HTTPS, WebSocket support, custom domains, and a persistent disk mounted at a chosen path. Its normal service filesystem is ephemeral. A persistent disk is a paid feature, can be attached to only one service instance, prevents multiple-instance scaling for that service, and creates a short unavailable period on each disk-backed redeploy. Render can host a lightweight public API or a deliberately single-instance backend, but it is not a drop-in substitute for the Oracle Docker workspace architecture until isolated workload execution, disk capacity, concurrency, and lifecycle controls are separately verified.
+
+Sources:
+
+- https://render.com/docs/disks
+- https://render.com/docs/docker
+- https://render.com/docs/web-services
