@@ -117,3 +117,11 @@ When the server project-storage pool reaches its configured threshold, new proje
 | Cleanup | Retains the local project and manifest. | Removes staging data, runner outputs, logs, and expired caches. |
 
 The client must never base64-encode a full large file. It sends binary chunks, reports progress, and obeys actual device and server capacity. A capacity rejection never deletes browser-resident project data.
+
+## Non-Arbitrary Capacity Rule
+
+SK Coder must not impose a product-defined 4 MB, 6 MB, 100 MB, or equivalent per-file or whole-project ceiling on an otherwise viable user workspace. The only valid constraints are measured browser-origin capacity, measured project-workspace capacity, temporary runner scratch capacity, transfer timeouts, and the verified limits of an external fallback provider.
+
+Server project capacity and execution capacity are separate lanes. When the retained project lane is full, the app continues to keep project files in browser storage and stages them to a temporary terminal or runner workspace when actual runtime capacity is available. A full retained-project lane must not by itself claim that every terminal and runner feature is unavailable.
+
+Browser workspace data is retained for the selected three-day lifecycle unless the user explicitly schedules deletion or clears site data. A deletion request uses a separate undoable schedule. Retention details belong in workspace management UI and documentation, not in terminal connection output.
