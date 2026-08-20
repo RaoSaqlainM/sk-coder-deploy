@@ -5,12 +5,14 @@ import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 function Router() {
+    const ownerDashboardHost = import.meta.env.VITE_OWNER_DASHBOARD_HOST;
+    const showOwnerDashboard = Boolean(ownerDashboardHost && window.location.hostname === ownerDashboardHost);
     return (<Switch>
       <Route path="/" component={IndexPage}/>
       <Route path="/guide"><InformationPage kind="guide"/></Route>
       <Route path="/privacy"><InformationPage kind="privacy"/></Route>
       <Route path="/terms"><InformationPage kind="terms"/></Route>
-      <Route path="/admin" component={AdminPage}/>
+      {showOwnerDashboard ? <Route path="/admin" component={AdminPage}/> : null}
       <Route component={NotFound}/>
     </Switch>);
 }

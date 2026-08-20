@@ -2,9 +2,9 @@
 
 ## Administrator Access
 
-The dashboard is a separate route and is not part of the normal seven-tab user workspace navigation. It must not be publicly accessible. The first implementation uses an `ADMIN_DASHBOARD_TOKEN` server secret supplied through deployment settings. The dashboard sends this token only over HTTPS to administrator routes. Every destructive request also requires a second explicit confirmation in the interface.
+The dashboard is a separate Oracle owner-only surface and is not part of the normal seven-tab user workspace navigation. It must not be publicly accessible through the normal SK Coder frontend. Production deployment uses a dedicated administrative domain or private route protected by the server reverse proxy. The reverse proxy verifies the owner before it serves the dashboard and injects the server-only `ADMIN_DASHBOARD_TOKEN` when forwarding administrator API requests to the backend.
 
-No user login feature is added. The administrator credential is a deployment secret and must never be committed to the frontend repository, browser defaults, logs, or screenshots.
+The owner does not enter an administrator token inside the ordinary SK Coder app. The secret remains in Oracle server deployment settings and reverse-proxy configuration. Every destructive request also requires a second explicit confirmation in the dashboard interface.
 
 ## Dashboard Views
 

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { useEffect, useState } from "react";
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 type Summary = {
     generatedAt: number;
@@ -36,24 +35,17 @@ function formatTime(timestamp: number) {
     return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(timestamp);
 }
 export default function AdminPage() {
-    const [token, setToken] = useState(() => sessionStorage.getItem("sk-coder-admin-token") || "");
     const [summary, setSummary] = useState<Summary | null>(null);
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const headers = useMemo(() => ({ "x-sk-admin-token": token }), [token]);
     async function load() {
-        if (!token.trim()) {
-            setError("Enter the administrator dashboard token configured on the server.");
-            return;
-        }
         setLoading(true);
         setError("");
-        sessionStorage.setItem("sk-coder-admin-token", token);
         try {
             const [summaryResponse, workspaceResponse] = await Promise.all([
-                fetch(`${API_BASE}/admin/summary`, { headers }),
-                fetch(`${API_BASE}/admin/workspaces`, { headers }),
+                fetch(`${API_BASE}/admin/summary`),
+                fetch(`${API_BASE}/admin/workspaces`),
             ]);
             if (!summaryResponse.ok || !workspaceResponse.ok) {
                 const body = await summaryResponse.json().catch(() => ({}));
@@ -76,7 +68,7 @@ export default function AdminPage() {
             return;
         const response = await fetch(`${API_BASE}/admin/workspaces/${encodeURIComponent(workspace.id)}/schedule-delete`, {
             method: "POST",
-            headers: { ...headers, "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ confirmWorkspaceId: confirmation }),
         });
         if (!response.ok) {
@@ -87,8 +79,7 @@ export default function AdminPage() {
         await load();
     }
     useEffect(() => {
-        if (token)
-            void load();
+        void load();
     }, []);
     const capacityCards = summary ? [
         ["Active terminals", summary.activeRuntimeSessions],
@@ -100,16 +91,12 @@ export default function AdminPage() {
     ] : [];
     return (<main className="info-page">
       <header className="info-header">
-        <Link href="/" className="info-back">← SK Coder</Link>
         <h1>Administrator Dashboard</h1>
-        <p>Protected operational status for server capacity and workspace cleanup.</p>
+        <p>Oracle owner-only operational status for capacity and workspace cleanup.</p>
       </header>
       <section className="info-section">
-        <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Administrator dashboard token</label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input type="password" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Configured on the backend server" style={{ flex: "1 1 280px", minWidth: 0 }}/>
           <button className="btn btn-primary" onClick={load} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
-          <button className="btn btn-ghost" onClick={() => { sessionStorage.removeItem("sk-coder-admin-token"); setToken(""); setSummary(null); setWorkspaces([]); }}>Clear</button>
         </div>
         {error && <p style={{ color: "var(--red)", marginTop: 12 }}>{error}</p>}
       </section>

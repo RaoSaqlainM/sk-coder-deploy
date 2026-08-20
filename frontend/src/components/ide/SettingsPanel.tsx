@@ -303,7 +303,8 @@ export default function SettingsPanel() {
                 </div>
 
                 <div className="settings-section">
-                  <div className="settings-section-title">Your Own API Key</div>
+                  <div className="settings-section-title">Connect Your AI Provider</div>
+                  <div className="settings-hint" style={{ marginBottom: "0.7rem" }}>For a supported provider, paste the key and select Connect. Leave the two fields below empty unless the provider gives you a documented OpenAI-compatible Base URL and Model.</div>
                   <div className="settings-row col">
                     <label>API Key</label>
                     <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", width: "100%" }}>
@@ -314,14 +315,14 @@ export default function SettingsPanel() {
                     </div>
                   </div>
                   <div className="settings-row col" style={{ marginTop: "0.7rem" }}>
-                    <label>Compatible Base URL</label>
+                    <label>Compatible Base URL, only if your provider gives one</label>
                     <input value={endpointInput} onChange={(e) => setEndpointInput(e.target.value)} placeholder="Optional. Example: https://provider.example/v1" style={{ fontFamily: "var(--font-code)", fontSize: 11 }}/>
                   </div>
                   <div className="settings-row col" style={{ marginTop: "0.7rem" }}>
-                    <label>Model</label>
+                    <label>Model, only if your provider gives one</label>
                     <input value={modelInput} onChange={(e) => setModelInput(e.target.value)} placeholder="Optional. Example: provider-model-name" style={{ fontFamily: "var(--font-code)", fontSize: 11 }}/>
                   </div>
-                  <div className="settings-hint" style={{ marginTop: "0.5rem" }}>Use these fields only when your provider documents an OpenAI-compatible chat endpoint. Other API formats need their own tested provider adapter.</div>
+                  <div className="settings-hint" style={{ marginTop: "0.5rem" }}>Do not enter the provider website address. Use these fields only when its API documentation gives an OpenAI-compatible chat endpoint and exact model name. Other API formats need their own tested provider adapter.</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem" }}>
                     {keyStatus === "valid" && <span style={{ fontSize: 12, color: "var(--green)" }}>✓ Connected</span>}
                     {keyStatus === "invalid" && <span style={{ fontSize: 12, color: "var(--red)" }}>✗ Invalid key</span>}

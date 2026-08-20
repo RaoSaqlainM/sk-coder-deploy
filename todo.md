@@ -115,3 +115,8 @@
 - [x] Build a separate protected administrator dashboard foundation with aggregate workspace, terminal, runner, capacity, and cleanup metrics plus confirmation-gated inactive-workspace cleanup scheduling.
 - [ ] Define protected automatic cleanup for terminal and runner scratch, package artifacts, staging data, previews, logs, and outputs so they expire independently of retained user source files.
 - [x] Define a staged language-image catalogue and queue strategy for expanding from verified languages toward hundreds of compilers without loading every toolchain into one unsafe runtime image.
+- [ ] Move the administrator dashboard behind an Oracle owner-only server route or private administrative domain, not a normal SK Coder user-facing dashboard path.
+- [x] Improve AI key setup language so known providers connect with one action and compatible providers provide only documented Base URL and Model values.
+- [x] Classify every language and file category in the supplied list as direct runtime, dedicated-image candidate, project build, preview, validation, external-service requirement, or edit-only.
+- [ ] Add a project-runner validation matrix for Make, CMake, Gradle, Maven, Bazel, browser projects, mobile projects, game projects, database/query files, and infrastructure formats.
+- [x] Build and inspect the updated frontend before delivering a current preview and results report.
