@@ -106,7 +106,7 @@ async function tryWandbox(language: string, code: string, stdin = ""): Promise<E
             exitCode: Number(data.status ?? (stderr ? 1 : 0)),
             executionTime: 0,
             tier: "wandbox-source",
-            capability: stdin ? "Public fallback ran this source file with input supplied before launch. Shell commands, packages, project files, live prompts, and persistence require Oracle." : "Public fallback ran this source file only. Shell commands, packages, project files, and persistence require Oracle.",
+            capability: stdin ? "Public fallback ran this source file with input supplied before launch. Shell commands, packages, project files, live prompts, and persistence require the primary workspace backend." : "Public fallback ran this source file only. Shell commands, packages, project files, and persistence require the primary workspace backend.",
         };
     }
     catch {
@@ -122,7 +122,7 @@ async function tryPyodide(code: string): Promise<ExecResponse | null> {
             exitCode: error ? 1 : 0,
             executionTime: 0,
             tier: "pyodide-browser",
-            capability: "Browser Python fallback ran this source only. Packages, shell commands, and project files require Oracle.",
+            capability: "Browser Python fallback ran this source only. Packages, shell commands, and project files require the primary workspace backend.",
         };
     }
     catch {
@@ -155,7 +155,7 @@ async function tryBackend(language: string, code: string, stdin = ""): Promise<E
             exitCode: data.exitCode ?? 1,
             executionTime: data.executionTime ?? 0,
             tier: "oracle-workspace" as const,
-            capability: stdin ? "Oracle isolated workspace executed this code with input supplied before launch. Use SK Shell for live prompts, commands, packages, and project work." : "Oracle isolated workspace executed this code. SK Shell and project commands use the same session runtime.",
+            capability: stdin ? "The isolated workspace executed this code with input supplied before launch. Use SK Shell for live prompts, commands, packages, and project work." : "The isolated workspace executed this code. SK Shell and project commands use the same session runtime.",
         };
         return isInfrastructureFailure(result.stderr) ? null : result;
     }
@@ -184,10 +184,10 @@ export async function execute(language: string, code: string, options?: {
     const label = normalized === "node" || normalized === "javascript" || normalized === "js" ? "Node.js" : language;
     return {
         stdout: "",
-        stderr: `No runtime is available for ${label}. Connect the Oracle backend for the primary workspace runtime or retry while a supported public source provider is online.`,
+        stderr: `No runtime is available for ${label}. Connect the primary workspace backend or retry while a supported public source provider is online.`,
         exitCode: 1,
         executionTime: Date.now() - startedAt,
         tier: "unavailable",
-        capability: stdin ? "No available source runner accepted this input-dependent file. SK Shell on Oracle provides live prompts, projects, packages, and persistence." : "No fallback can provide a shell session, dependency installation, multi-file project, or persistent workspace without Oracle.",
+        capability: stdin ? "No available source runner accepted this input-dependent file. SK Shell on the primary workspace backend provides live prompts, projects, packages, and persistence." : "No fallback can provide a shell session, dependency installation, multi-file project, or persistent workspace without the primary workspace backend.",
     };
 }
