@@ -52,4 +52,5 @@
 - [ ] Replace the expired temporary tunnel values in Vercel with https://partnerships-smile-thu-sierra.trycloudflare.com and retest the live frontend connection.
 - [ ] Verify whether https://sk-code.vercel.app is deploying the intended frontend-only repository and contains the current temporary API and WebSocket endpoint values.
 - [ ] Correct runtime workspace ownership so npm, package locks, project files, and log directories are writable from SK Shell.
-- [ ] Clear the offline banner after a successful late WebSocket connection so terminal status matches the live isolated workspace session.
+- [x] Clear the offline banner after a successful late WebSocket connection so terminal status matches the live isolated workspace session.
+- [x] Diagnose and repair loss of the active SK Shell workspace session between consecutive commands after a successful WebSocket connection.

@@ -158,6 +158,7 @@ export type TerminalSocketHandlers = {
     onStderr: (data: string) => void;
     onExit: (code: number) => void;
     onError: (error: string) => void;
+    onClose: (reason: string) => void;
 };
 export function createTerminalWebSocket(handlers: TerminalSocketHandlers, sessionId?: string) {
     const endpoint = sessionId ? `${WS_BASE}?sessionId=${encodeURIComponent(sessionId)}` : WS_BASE;
@@ -184,6 +185,7 @@ export function createTerminalWebSocket(handlers: TerminalSocketHandlers, sessio
         }
     };
     ws.onerror = () => handlers.onError("WebSocket connection failed");
+    ws.onclose = (event) => handlers.onClose(event.reason || `WebSocket closed (${event.code})`);
     return {
         sendCommand: (command: string) => { if (ws.readyState === WebSocket.OPEN)
             ws.send(JSON.stringify({ type: "command", command })); },
@@ -191,6 +193,7 @@ export function createTerminalWebSocket(handlers: TerminalSocketHandlers, sessio
             ws.send(JSON.stringify({ type: "input", data })); },
         interrupt: () => { if (ws.readyState === WebSocket.OPEN)
             ws.send(JSON.stringify({ type: "interrupt" })); },
+        isOpen: () => ws.readyState === WebSocket.OPEN,
         close: () => ws.close(),
     };
 }

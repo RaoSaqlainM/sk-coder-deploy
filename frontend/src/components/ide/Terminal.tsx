@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useIDEStore } from "@/store/ideStore";
 import { execute, type ExecResponse } from "@/lib/executorChain";
-import { createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner";
+import { createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner";
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient";
 import { parseErrors } from "@/components/ide/ErrorPanel";
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy";
@@ -337,6 +337,18 @@ export default function MultiTerminal() {
                     return { ...previous, [tabId]: { ...state, lines: [...state.lines, mkLine("error", readableMessage)] } };
                 });
             },
+            onClose: () => {
+                if (!isCurrentSocket())
+                    return;
+                terminalSocketsRef.current.delete(tabId);
+                if (!workspaceSessionIdRef.current) {
+                    setWorkspaceConnection("offline");
+                    return;
+                }
+                setWorkspaceConnection("waiting");
+                addLine(tabId, "info", "Workspace connection was interrupted. Reconnecting…");
+                window.setTimeout(() => connectShell(tabId, workspaceSessionIdRef.current), 300);
+            },
         }, savedSessionId || undefined);
         terminalSocketsRef.current.set(tabId, socket);
     }
@@ -369,6 +381,16 @@ export default function MultiTerminal() {
             terminalSocketsRef.current.clear();
         };
     }, [settings.backend.enabled]);
+    useEffect(() => {
+        if (!workspaceLifecycle)
+            return;
+        const interval = window.setInterval(() => {
+            void heartbeatWorkspace(workspaceLifecycle.id, workspaceLifecycle.retentionMode)
+                .then(setWorkspaceLifecycle)
+                .catch(() => undefined);
+        }, 60000);
+        return () => window.clearInterval(interval);
+    }, [workspaceLifecycle?.id, workspaceLifecycle?.retentionMode]);
     useEffect(() => {
         function handleClick(e: MouseEvent) {
             if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
@@ -496,7 +518,7 @@ export default function MultiTerminal() {
         const parts = input.trim().split(/\s+/);
         const cmd = parts[0].toLowerCase();
         const args = parts.slice(1);
-        if (workspaceSessionIdRef.current && terminalSocket) {
+        if (workspaceSessionIdRef.current && terminalSocket?.isOpen()) {
             try {
                 if (cmd === "cd") {
                     const target = resolvePath(cwd, args[0] || "/");
@@ -509,9 +531,26 @@ export default function MultiTerminal() {
                 return;
             }
             catch (error) {
-                workspaceSessionIdRef.current = null;
-                addLine(tabId, "error", error instanceof Error ? error.message : "Workspace synchronization failed.");
+                const message = error instanceof Error ? error.message : "Workspace synchronization failed.";
+                if (/Workspace session not found|Workspace runtime is not active|expired/i.test(message)) {
+                    localStorage.removeItem("sk-coder-workspace-session-id");
+                    workspaceSessionIdRef.current = null;
+                    terminalSocketsRef.current.delete(tabId);
+                    terminalSocket.close();
+                    setWorkspaceConnection("waiting");
+                    addLine(tabId, "info", "Workspace session was replaced. Reconnecting before the next command…");
+                    window.setTimeout(() => connectShell(tabId), 300);
+                    return;
+                }
+                addLine(tabId, "error", message);
+                return;
             }
+        }
+        if (workspaceSessionIdRef.current) {
+            setWorkspaceConnection("waiting");
+            addLine(tabId, "info", "Workspace connection is recovering. Your command was not sent; run it again when SK Shell reconnects.");
+            connectShell(tabId, workspaceSessionIdRef.current);
+            return;
         }
         if (cmd === "help") {
             const help = [
