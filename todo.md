@@ -52,6 +52,10 @@
 - [x] Keep imported media as IndexedDB blobs and preserve browser-local image, video, audio, PDF, and HTML-project previews without base64 expansion.
 - [x] Clear local terminal history when the user schedules full workspace deletion so terminal traces do not outlive the cleanup request.
 - [x] Limit temporary SK Shell snapshots to 6 MB total with individual binary assets capped at 4 MB, preserving larger browser-held assets for local preview only.
+- [ ] Redesign project storage so a bounded server-first workspace is preferred, then browser IndexedDB becomes a transparent continuation store when that server pool is full.
+- [ ] Replace the fixed small terminal snapshot contract with quota-aware chunked staging that can transfer large changed browser files safely without base64 duplication.
+- [ ] Define and enforce lifecycle cleanup for staged runner input, output, package artifacts, logs, terminal history, and APK workspaces without deleting retained user project files.
+- [ ] Audit the safe SK Shell command surface and package-install networking policy so normal project commands work without exposing host or Docker control.
 - [ ] Produce an honest runtime classification for requested languages, distinguishing real runnable support, preview/edit-only support, and toolchains requiring an expanded server image.
 - [ ] Replace the expired temporary tunnel values in Vercel with https://partnerships-smile-thu-sierra.trycloudflare.com and retest the live frontend connection.
 - [ ] Verify whether https://sk-code.vercel.app is deploying the intended frontend-only repository and contains the current temporary API and WebSocket endpoint values.

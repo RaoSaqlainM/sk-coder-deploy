@@ -101,3 +101,19 @@ The name “VertoDB” is not a standard browser or hosting storage technology. 
 ## Security Rule
 
 Tokens shared in chat are treated as exposed. They must be revoked and recreated before they are used. The new secrets must be held only in secured server configuration and never embedded in frontend code, Git history, screenshots, or documents.
+
+## Revised Server-First Continuation Rule
+
+The server first attempts to create a retained project workspace from the bounded terminal workspace pool. When the pool has sufficient quota, newly created and imported files are staged there and ordinary SK Shell commands use that workspace directly. The browser keeps a local manifest and device copy so refresh, temporary disconnects, and cloud cleanup do not destroy the user project.
+
+When the server project-storage pool reaches its configured threshold, new project files remain in browser IndexedDB or OPFS and the project is marked browser-resident. Terminal and runner requests then create a temporary staging session only when required and copy the browser manifest through resumable chunks. The server removes staging files, generated artifacts, and command logs on the lifecycle deadline. The browser remains the source of truth unless the user explicitly elects to retain the server workspace.
+
+| Stage | Browser responsibility | Server responsibility |
+|---|---|---|
+| Start | Sends a manifest with path, byte size, hash, and revision. | Returns a staging session ID and the missing file ranges. |
+| Transfer | Sends 4 MiB binary chunks from `Blob.slice()` or a stream. | Writes chunks to a temporary staging path and records completed offsets. |
+| Resume | Requests the existing session after a network interruption. | Returns completed ranges so only missing chunks are resent. |
+| Verify | Sends final file hash and project revision. | Promotes complete files atomically into the isolated terminal or runner workspace. |
+| Cleanup | Retains the local project and manifest. | Removes staging data, runner outputs, logs, and expired caches. |
+
+The client must never base64-encode a full large file. It sends binary chunks, reports progress, and obeys actual device and server capacity. A capacity rejection never deletes browser-resident project data.

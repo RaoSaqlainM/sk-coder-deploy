@@ -69,3 +69,17 @@ Sources:
 
 - https://vercel.com/docs/domains/working-with-domains/add-a-domain
 - https://vercel.com/kb/guide/a-record-and-caa-with-vercel
+
+## Streaming Transfer Correction
+
+Browser-resident project files cannot be mounted directly into an Oracle or AWS runtime container. A large local file must be staged across the network when a terminal or runner needs it. The File API supports `Blob.slice()` for bounded byte ranges, and modern browsers expose `Blob.stream()` as a `ReadableStream`, allowing staged transfer without first converting a full file to a base64 string in JavaScript memory.
+
+The implementation must use resumable chunk records, integrity metadata, and a temporary per-session staging directory. It should release staging data, command outputs, and package-install caches on the configured lifecycle deadline while retaining the browser project unless the user explicitly deletes or exports it.
+
+Browser storage remains finite and browser-specific. `navigator.storage.estimate()` is an estimate, `navigator.storage.persist()` can reduce eviction risk but is not guaranteed, and private browsing typically deletes stored data when the private session ends. The app must report actual capacity rather than pretend every device has unlimited storage.
+
+Sources:
+
+- https://developer.mozilla.org/en-US/docs/Web/API/Blob/stream
+- https://developer.mozilla.org/en-US/docs/Web/API/Blob/slice
+- https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria
