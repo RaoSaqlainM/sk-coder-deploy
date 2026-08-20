@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import type { FileNode } from "../types/ide";
+import { storeBrowserBlob } from "./browserStorage";
 function generateId() {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -23,8 +24,9 @@ const SKIP_ENTRIES = new Set([
 const ZIP_COMPATIBLE_ARCHIVE_EXTENSIONS = new Set([
     "zip", "jar", "apk", "xapk", "apks", "war", "ear", "aar",
 ]);
-const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
-const MAX_ARCHIVE_ENTRIES = 4000;
+const MAX_ARCHIVE_BYTES = 1024 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRIES = 10000;
+const INLINE_TEXT_BYTES = 8 * 1024 * 1024;
 const PREVIEWABLE_ASSET_MIME_TYPES: Record<string, string> = {
     png: "image/png", apng: "image/apng", jpg: "image/jpeg", jpeg: "image/jpeg", jpe: "image/jpeg", jfif: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", svgz: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon", cur: "image/x-icon", avif: "image/avif", tif: "image/tiff", tiff: "image/tiff", heic: "image/heic", heif: "image/heif", jxl: "image/jxl",
     mp4: "video/mp4", m4v: "video/x-m4v", webm: "video/webm", ogv: "video/ogg", mov: "video/quicktime", mkv: "video/x-matroska", avi: "video/x-msvideo", wmv: "video/x-ms-wmv", flv: "video/x-flv", mpeg: "video/mpeg", mpg: "video/mpeg", "3gp": "video/3gpp", "3g2": "video/3gpp2", ts: "video/mp2t", mts: "video/mp2t", m2ts: "video/mp2t",
@@ -41,19 +43,16 @@ function previewableAssetMimeType(name: string, browserMimeType = ""): string | 
     const extension = name.split(".").pop()?.toLowerCase() || "";
     return PREVIEWABLE_ASSET_MIME_TYPES[extension] || null;
 }
-function isPreviewableAssetFile(file: File): boolean {
-    return Boolean(previewableAssetMimeType(file.name, file.type));
-}
-function toDataUrl(mimeType: string, base64: string) {
-    return `data:${mimeType};base64,${base64}`;
-}
-async function fileToDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read media data"));
-        reader.onerror = () => reject(new Error("Could not read media data"));
-        reader.readAsDataURL(file);
-    });
+async function nodeForBrowserFile(file: File, path: string): Promise<FileNode> {
+    const mimeType = previewableAssetMimeType(file.name, file.type);
+    if (mimeType) {
+        const assetBlobId = await storeBrowserBlob(file);
+        return { id: generateId(), name: file.name, type: "file", path, language: getLanguage(file.name), assetBlobId, assetMimeType: mimeType, assetSize: file.size };
+    }
+    if (file.size > INLINE_TEXT_BYTES) {
+        throw new Error(`${file.name} is too large to open as editable source. Keep it as a downloadable asset or split the source file.`);
+    }
+    return { id: generateId(), name: file.name, type: "file", path, language: getLanguage(file.name), content: await file.text(), assetSize: file.size };
 }
 function archiveRootName(filename: string): string {
     return filename.replace(/\.(zip|jar|apk|xapk|apks|war|ear|aar)$/i, "") || "archive";
@@ -86,7 +85,7 @@ export async function importFromArchive(file: File): Promise<FileNode[]> {
         throw new Error("This archive format is not supported for browser extraction");
     }
     if (file.size > MAX_ARCHIVE_BYTES) {
-        throw new Error("Archive is larger than the browser extraction limit");
+        throw new Error("Archive is larger than the 1 GB browser extraction target");
     }
     const nodes = await importFromZip(file);
     return [rebaseArchiveNodes(nodes, archiveRootName(file.name))];
@@ -125,11 +124,20 @@ export async function importFromZip(file: File): Promise<FileNode[]> {
                     };
                     if (isFile) {
                         try {
-                            const mimeType = previewableAssetMimeType(part);
-                            if (mimeType)
-                                newNode.assetData = toDataUrl(mimeType, await zipFile.async("base64"));
-                            else
-                                newNode.content = await zipFile.async("string");
+                            const blob = await zipFile.async("blob");
+                            const mimeType = previewableAssetMimeType(part, blob.type);
+                            if (mimeType) {
+                                newNode.assetBlobId = await storeBrowserBlob(blob);
+                                newNode.assetMimeType = mimeType;
+                                newNode.assetSize = blob.size;
+                            }
+                            else if (blob.size <= INLINE_TEXT_BYTES) {
+                                newNode.content = await blob.text();
+                                newNode.assetSize = blob.size;
+                            }
+                            else {
+                                throw new Error("Large non-previewable archive entries cannot be opened as editable source");
+                            }
                         }
                         catch (err) {
                             console.error(`Failed to read ${relativePath}:`, err);
@@ -166,25 +174,12 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
         for (const file of Array.from(files)) {
             if (shouldSkip(file.name))
                 continue;
-            let content = "";
-            let assetData: string | undefined;
             try {
-                assetData = isPreviewableAssetFile(file) ? await fileToDataUrl(file) : undefined;
-                if (!assetData)
-                    content = await file.text();
+                nodes.push(await nodeForBrowserFile(file, `/${file.name}`));
             }
-            catch {
-                content = "";
+            catch (error) {
+                throw error instanceof Error ? error : new Error(`Could not import ${file.name}`);
             }
-            nodes.push({
-                id: generateId(),
-                name: file.name,
-                type: "file",
-                path: `/${file.name}`,
-                content,
-                assetData,
-                language: getLanguage(file.name),
-            });
         }
         return nodes;
     }
@@ -215,9 +210,11 @@ export async function importFromFiles(files: FileList): Promise<FileNode[]> {
                 };
                 if (isFile) {
                     try {
-                        newNode.assetData = isPreviewableAssetFile(file) ? await fileToDataUrl(file) : undefined;
-                        if (!newNode.assetData)
-                            newNode.content = await file.text();
+                        const importedNode = await nodeForBrowserFile(file, childPath);
+                        newNode.content = importedNode.content;
+                        newNode.assetBlobId = importedNode.assetBlobId;
+                        newNode.assetMimeType = importedNode.assetMimeType;
+                        newNode.assetSize = importedNode.assetSize;
                     }
                     catch {
                         newNode.content = "";

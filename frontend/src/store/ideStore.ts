@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import type { FileNode, Tab, TerminalType, TerminalLine, AIChatMessage, ActivePanel, Settings, ErrorEntry, } from "../types/ide";
+import { deleteBrowserBlob } from "../lib/browserStorage";
 const DEFAULT_SETTINGS: Settings = {
     editor: {
         fontSize: 14,
@@ -177,6 +178,22 @@ function deleteAllFileContents(nodes: FileNode[]) {
         if (node.children)
             deleteAllFileContents(node.children);
     }
+}
+function collectBlobIds(nodes: FileNode[], ids = new Set<string>()) {
+    for (const node of nodes) {
+        if (node.assetBlobId)
+            ids.add(node.assetBlobId);
+        if (node.children)
+            collectBlobIds(node.children, ids);
+    }
+    return ids;
+}
+function removeUnreferencedBlobs(removed: Set<string>, retainedTree: FileNode[]) {
+    const retained = collectBlobIds(retainedTree);
+    removed.forEach((id) => {
+        if (!retained.has(id))
+            void deleteBrowserBlob(id);
+    });
 }
 type ContextMenuState = {
     x: number;
@@ -491,9 +508,11 @@ export const useIDEStore = create<IDEState & IDEActions>()(persist((set, get) =>
         const map = new Map<string, FileNode>();
         flattenTree(get().fileTree, map);
         const node = map.get(path);
+        const removedBlobs = node ? collectBlobIds([node]) : new Set<string>();
         if (node)
             deleteAllFileContents([node]);
         const tree = deleteNodeAtPath(get().fileTree, path);
+        removeUnreferencedBlobs(removedBlobs, tree);
         const newMap = new Map<string, FileNode>();
         flattenTree(tree, newMap);
         const openTabs = get().openTabs.filter((t) => !t.path.startsWith(path));
@@ -509,13 +528,17 @@ export const useIDEStore = create<IDEState & IDEActions>()(persist((set, get) =>
             return;
         const currentMap = new Map<string, FileNode>();
         flattenTree(get().fileTree, currentMap);
+        const removedBlobs = new Set<string>();
         targets.forEach((path) => {
             const node = currentMap.get(path);
-            if (node)
+            if (node) {
+                collectBlobIds([node], removedBlobs);
                 deleteAllFileContents([node]);
+            }
         });
         let tree = get().fileTree;
         targets.forEach((path) => { tree = deleteNodeAtPath(tree, path); });
+        removeUnreferencedBlobs(removedBlobs, tree);
         const flatFiles = new Map<string, FileNode>();
         flattenTree(tree, flatFiles);
         const openTabs = get().openTabs.filter((tab) => !targets.some((path) => tab.path === path || tab.path.startsWith(path + "/")));

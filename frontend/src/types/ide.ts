@@ -4,6 +4,9 @@ export type FileNode = {
     type: "file" | "folder";
     content?: string;
     assetData?: string;
+    assetBlobId?: string;
+    assetMimeType?: string;
+    assetSize?: number;
     children?: FileNode[];
     language?: string;
     path: string;

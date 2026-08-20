@@ -47,7 +47,9 @@
 - [ ] Audit and repair workspace retention so three-day retention, four-hour deletion, terminal history, files, folders, and APK-workspace state follow one consistent lifecycle.
 - [ ] Audit large-file import behavior and design a safe path toward 1 GB project handling without exceeding browser, Vercel, or the 28 GB AWS backend capacity.
 - [ ] Audit APK editor state integration so APK assets and edits participate consistently in the selected workspace lifecycle.
-- [ ] Audit mobile desktop-mode keyboard zoom and viewport behavior while preserving the approved mobile layout.
+- [x] Audit mobile desktop-mode keyboard zoom and viewport behavior while preserving the approved mobile layout.
+- [x] Add quota-aware browser import preflight, persistent-storage requests, and clear large-source failure handling before importing files.
+- [x] Keep imported media as IndexedDB blobs and preserve browser-local image, video, audio, PDF, and HTML-project previews without base64 expansion.
 - [ ] Produce an honest runtime classification for requested languages, distinguishing real runnable support, preview/edit-only support, and toolchains requiring an expanded server image.
 - [ ] Replace the expired temporary tunnel values in Vercel with https://partnerships-smile-thu-sierra.trycloudflare.com and retest the live frontend connection.
 - [ ] Verify whether https://sk-code.vercel.app is deploying the intended frontend-only repository and contains the current temporary API and WebSocket endpoint values.
@@ -66,3 +68,12 @@
 - [ ] Diagnose the reported live Vercel-to-AWS backend connection failure and correct only the verified API or WebSocket configuration mismatch.
 - [x] Recover automatically when a browser retains a deleted workspace-session ID instead of showing “Workspace session not found or expired.”
 - [x] Enforce the intended architecture: keep user project files in browser IndexedDB by default and use AWS workspaces only as temporary isolated terminal and runner environments.
+- [ ] Verify the currently deployed Vercel frontend bundle against the live AWS endpoint after the user’s repeated connection report and update only if it is demonstrably stale.
+- [ ] Document the required permanent custom-domain backend process so service availability does not depend on an open SSH window or temporary tunnel.
+- [ ] Separate browser-first project persistence from bounded temporary terminal and runner workspaces with explicit cleanup rules.
+- [ ] Raise the import workflow to support very large projects through a safe staged-import design rather than a misleading small browser limit.
+- [ ] Correct the three-day workspace lifecycle so terminal history, temporary package artifacts, and APK workspaces follow the same retention and deletion policy.
+- [ ] Audit the mobile desktop-mode keyboard zoom and restore reliable touch, scrolling, and viewport behavior without changing the approved mobile layout.
+- [ ] Audit APK workspace lifecycle behavior and distinguish supported safe edits from unsupported APK modification requests.
+- [ ] Build an honest, tested language-support matrix that separates direct runtime support, project-toolchain support, preview/validation-only formats, and unavailable languages.
+- [ ] Replace exposed GitHub and AI credentials through secure settings before any integration tests use them.

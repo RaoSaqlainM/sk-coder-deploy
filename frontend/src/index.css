@@ -69,6 +69,9 @@ input, textarea, select {
   transition: border-color var(--transition);
   width: 100%;
 }
+@media (max-width: 1024px) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px; }
+}
 input:focus, textarea:focus, select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px rgba(0,122,204,0.15); }
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 code, pre { font-family: var(--font-code); }

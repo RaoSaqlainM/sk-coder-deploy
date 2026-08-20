@@ -3,7 +3,8 @@ import { useIDEStore } from "@/store/ideStore";
 import { buildPreview } from "@/lib/previewBuilder";
 import { execute } from "@/lib/executorChain";
 import { isDirectPreviewFile, isPdfPreviewFile } from "@/lib/projectCapabilities";
-import type { PreviewViewport } from "@/types/ide";
+import { loadBrowserBlob } from "@/lib/browserStorage";
+import type { FileNode, PreviewViewport } from "@/types/ide";
 type ResultMode = "preview" | "console" | "problems" | "files" | "runtime";
 export default function PreviewPane() {
     const { fileTree, flatFiles, previewKey, previewPath, settings, updatePreviewSettings, getActiveFile, addTerminalLine, previewResult, setPreviewResult, openFileInTerminal, isRunning, setIsRunning, setFileAssetData } = useIDEStore();
@@ -17,11 +18,14 @@ export default function PreviewPane() {
     const [programInput, setProgramInput] = useState("");
     const [showProgramInput, setShowProgramInput] = useState(false);
     const [runningWithInput, setRunningWithInput] = useState(false);
+    const [assetUrl, setAssetUrl] = useState("");
+    const [projectAssetUrls, setProjectAssetUrls] = useState<Map<string, string>>(new Map());
     const viewport = settings.preview.viewport;
     const editorFile = getActiveFile();
     const activeFile = previewPath ? flatFiles.get(previewPath) || editorFile : editorFile;
+    const assetPreviewUrl = activeFile?.assetData || assetUrl;
     const isPdfPreview = Boolean(activeFile && isPdfPreviewFile(activeFile));
-    const directPreviewNeedsSource = Boolean(activeFile && isDirectPreviewFile(activeFile) && !activeFile.assetData);
+    const directPreviewNeedsSource = Boolean(activeFile && isDirectPreviewFile(activeFile) && !assetPreviewUrl);
     const activePathRef = useRef<string | undefined>(activeFile?.path);
     useEffect(() => {
         if (activePathRef.current !== activeFile?.path) {
@@ -30,10 +34,55 @@ export default function PreviewPane() {
             setResultMode("preview");
         }
     }, [activeFile?.path, setPreviewResult]);
+    useEffect(() => {
+        let objectUrl = "";
+        setAssetUrl("");
+        if (!activeFile?.assetBlobId)
+            return;
+        void loadBrowserBlob(activeFile.assetBlobId).then((blob) => {
+            if (!blob)
+                return;
+            objectUrl = URL.createObjectURL(blob);
+            setAssetUrl(objectUrl);
+        });
+        return () => {
+            if (objectUrl)
+                URL.revokeObjectURL(objectUrl);
+        };
+    }, [activeFile?.assetBlobId]);
+    useEffect(() => {
+        let disposed = false;
+        const urls: string[] = [];
+        const nodes: FileNode[] = [];
+        const collect = (items: FileNode[]) => items.forEach((node) => {
+            if (node.assetBlobId)
+                nodes.push(node);
+            if (node.children)
+                collect(node.children);
+        });
+        collect(fileTree);
+        void Promise.all(nodes.map(async (node) => ({ path: node.path, blob: await loadBrowserBlob(node.assetBlobId!) }))).then((assets) => {
+            if (disposed)
+                return;
+            const next = new Map<string, string>();
+            assets.forEach(({ path, blob }) => {
+                if (!blob)
+                    return;
+                const url = URL.createObjectURL(blob);
+                urls.push(url);
+                next.set(path, url);
+            });
+            setProjectAssetUrls(next);
+        });
+        return () => {
+            disposed = true;
+            urls.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [fileTree]);
     function buildAndSet() {
         if (showExternal)
             return;
-        const html = buildPreview(fileTree, activeFile?.path);
+        const html = buildPreview(fileTree, activeFile?.path, projectAssetUrls);
         if (iframeRef.current) {
             iframeRef.current.srcdoc = html;
             setLoadError(false);
@@ -41,7 +90,7 @@ export default function PreviewPane() {
     }
     useEffect(() => {
         buildAndSet();
-    }, [previewKey, fileTree, showExternal, activeFile?.path, viewport]);
+    }, [previewKey, fileTree, projectAssetUrls, showExternal, activeFile?.path, viewport]);
     useEffect(() => {
         setResultMode(previewResult || isRunning ? "console" : "preview");
     }, [previewResult, isRunning]);
@@ -85,11 +134,11 @@ export default function PreviewPane() {
             window.open(liveUrl, "_blank");
             return;
         }
-        if (activeFile && isDirectPreviewFile(activeFile) && activeFile.assetData) {
-            window.open(activeFile.assetData, "_blank");
+        if (activeFile && isDirectPreviewFile(activeFile) && assetPreviewUrl) {
+            window.open(assetPreviewUrl, "_blank");
             return;
         }
-        const html = buildPreview(fileTree, activeFile?.path);
+        const html = buildPreview(fileTree, activeFile?.path, projectAssetUrls);
         const blob = new Blob([html], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
@@ -285,8 +334,14 @@ export default function PreviewPane() {
             <div style={{ fontFamily: "var(--font-mono)", color: result?.exitCode === 0 ? "#56d364" : result ? "#f97583" : "#58a6ff", fontSize: 12 }}>{resultStatus}</div>
             <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem", lineHeight: 1.6 }}>{runDetail}</div>
             {result?.executionTime !== undefined && <div style={{ color: "#8b949e", fontSize: 12, marginTop: "0.75rem" }}>Finished in {result.executionTime} ms</div>}
-          </div>) : isPdfPreview && activeFile?.assetData ? (<div style={{ width: "100%", height: "100%", background: "#0d1117" }}>
-            <iframe title={`${activeFile.name} PDF preview`} src={activeFile.assetData} style={{ width: "100%", height: "100%", border: "none", display: "block", background: "white" }}/>
+          </div>) : isPdfPreview && assetPreviewUrl ? (<div style={{ width: "100%", height: "100%", background: "#0d1117" }}>
+            <iframe title={`${activeFile?.name || "PDF"} PDF preview`} src={assetPreviewUrl} style={{ width: "100%", height: "100%", border: "none", display: "block", background: "white" }}/>
+          </div>) : activeFile?.assetMimeType?.startsWith("image/") && assetPreviewUrl ? (<div style={{ width: "100%", height: "100%", background: "#0d1117", display: "grid", placeItems: "center", overflow: "auto" }}>
+            <img src={assetPreviewUrl} alt={activeFile.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}/>
+          </div>) : activeFile?.assetMimeType?.startsWith("video/") && assetPreviewUrl ? (<div style={{ width: "100%", height: "100%", background: "#0d1117", display: "grid", placeItems: "center" }}>
+            <video src={assetPreviewUrl} controls style={{ maxWidth: "100%", maxHeight: "100%" }}/>
+          </div>) : activeFile?.assetMimeType?.startsWith("audio/") && assetPreviewUrl ? (<div style={{ width: "100%", height: "100%", background: "#0d1117", display: "grid", placeItems: "center", padding: "2rem" }}>
+            <audio src={assetPreviewUrl} controls style={{ width: "min(640px, 100%)" }}/>
           </div>) : viewport === "desktop" ? (<div className="preview-frame-full">
             <iframe ref={iframeRef} title="Preview" sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups" allow="camera; microphone" style={{ width: "100%", height: "100%", border: "none", background: "white", display: "block" }} onError={() => setLoadError(true)}/>
           </div>) : (<div className="preview-device-wrap">

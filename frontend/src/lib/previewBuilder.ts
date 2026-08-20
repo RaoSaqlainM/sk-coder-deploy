@@ -26,19 +26,22 @@ function resolveProjectPath(directory: string, reference: string): string {
     }
     return `/${resolved.join("/")}`;
 }
-function inlineProjectAssets(content: string, directory: string, files: Map<string, FileNode>): string {
+function assetSource(node: FileNode | undefined, sources: Map<string, string>): string | undefined {
+    return node?.assetData || sources.get(node?.path || "");
+}
+function inlineProjectAssets(content: string, directory: string, files: Map<string, FileNode>, sources: Map<string, string>): string {
     return content.replace(/(\b(?:src|poster|href)\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, reference, suffix) => {
         if (/^(?:data:|blob:|https?:|#)/i.test(reference))
             return match;
-        const asset = files.get(resolveProjectPath(directory, reference))?.assetData;
+        const asset = assetSource(files.get(resolveProjectPath(directory, reference)), sources);
         return asset ? `${prefix}${asset}${suffix}` : match;
     });
 }
-function inlineCssImageAssets(css: string, directory: string, files: Map<string, FileNode>): string {
+function inlineCssImageAssets(css: string, directory: string, files: Map<string, FileNode>, sources: Map<string, string>): string {
     return css.replace(/url\(\s*(['"]?)([^'"\)]+)\1\s*\)/gi, (match, quote, reference) => {
         if (/^(?:data:|blob:|https?:|#)/i.test(reference))
             return match;
-        const asset = files.get(resolveProjectPath(directory, reference))?.assetData;
+        const asset = assetSource(files.get(resolveProjectPath(directory, reference)), sources);
         return asset ? `url("${asset}")` : match;
     });
 }
@@ -64,11 +67,11 @@ ${js}
 </body>
 </html>`;
 }
-export function buildPreview(fileTree: FileNode[], activePath?: string): string {
+export function buildPreview(fileTree: FileNode[], activePath?: string, sources = new Map<string, string>()): string {
     const files = flattenFiles(fileTree);
     if (activePath) {
         const mediaNode = files.get(activePath);
-        const mediaSource = mediaNode?.assetData;
+        const mediaSource = assetSource(mediaNode, sources);
         const previewKind = mediaNode ? getPreviewKind(mediaNode) : null;
         if (mediaNode?.type === "file" && mediaSource && previewKind) {
             const safeName = mediaNode.name.replace(/[&<>"']/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value] || value));
@@ -94,7 +97,7 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
             const cssPath = resolveProjectPath(dir, href);
             const cssNode = files.get(cssPath);
             if (cssNode)
-                return `<style>${inlineCssImageAssets(cssNode.content || "", cssNode.path.substring(0, cssNode.path.lastIndexOf("/")), files)}</style>`;
+                return `<style>${inlineCssImageAssets(cssNode.content || "", cssNode.path.substring(0, cssNode.path.lastIndexOf("/")), files, sources)}</style>`;
             return match;
         });
         html = html.replace(/<script[^>]+src="([^"]+\.(?:js|ts))"[^>]*><\/script>/gi, (match, src) => {
@@ -106,7 +109,7 @@ export function buildPreview(fileTree: FileNode[], activePath?: string): string 
                 return `<script>${jsNode.content || ""}</script>`;
             return match;
         });
-        return inlineProjectAssets(html, dir, files);
+        return inlineProjectAssets(html, dir, files, sources);
     }
     const cssFile = findFirst(files, "css");
     const jsFile = findFirst(files, "javascript");

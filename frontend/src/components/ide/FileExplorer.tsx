@@ -2,6 +2,7 @@ import { useRef, useState, useMemo, memo } from "react";
 import { MoreVertical } from "lucide-react";
 import { useIDEStore } from "@/store/ideStore";
 import { importFromArchive, importFromFiles, isZipCompatibleArchive, exportToZip, downloadBlob } from "@/lib/importProject";
+import { formatBytes, prepareBrowserProjectImport } from "@/lib/browserStorage";
 import type { FileNode } from "@/types/ide";
 import { toast } from "sonner";
 import { isDirectPreviewFile } from "@/lib/projectCapabilities";
@@ -248,6 +249,16 @@ export default function FileExplorer() {
         if (!files.length)
             return;
         const selectedFiles = Array.from(files);
+        const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+        try {
+            const status = await prepareBrowserProjectImport(totalBytes);
+            if (status.available && !status.persistent)
+                toast.message(`Importing ${formatBytes(totalBytes)} into browser storage. This browser did not grant persistent storage, so keep an exported backup.`);
+        }
+        catch (error) {
+            toast.error(error instanceof Error ? error.message : "This device cannot reserve enough browser storage for the selected import.");
+            return;
+        }
         const archives = selectedFiles.filter((file) => isZipCompatibleArchive(file.name));
         const regularFiles = selectedFiles.filter((file) => !isZipCompatibleArchive(file.name));
         const imported: FileNode[] = [];
@@ -261,9 +272,14 @@ export default function FileExplorer() {
             }
         }
         if (regularFiles.length) {
-            const transfer = new DataTransfer();
-            regularFiles.forEach((file) => transfer.items.add(file));
-            imported.push(...await importFromFiles(transfer.files));
+            try {
+                const transfer = new DataTransfer();
+                regularFiles.forEach((file) => transfer.items.add(file));
+                imported.push(...await importFromFiles(transfer.files));
+            }
+            catch (error) {
+                errors.push(error instanceof Error ? error.message : "Some selected files could not be imported");
+            }
         }
         if (imported.length) {
             importFiles(imported);
