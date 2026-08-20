@@ -86,8 +86,8 @@
 - [ ] Remove obsolete task history that describes the former 6 MB and 4 MB terminal-transfer caps; no arbitrary per-file or project-size ceiling may remain in the final transfer flow.
 - [ ] Preserve browser workspace files and folders for the selected three-day lifecycle unless the user explicitly schedules deletion or clears the site’s browser data.
 - [ ] Keep server-side deletion as a four-hour undoable schedule only after the user explicitly chooses Delete; do not expose retention instructions as terminal connection text.
-- [ ] Remove 3-day and 4-hour retention messaging from SK Shell connection output while keeping lifecycle controls available in their appropriate workspace UI.
-- [ ] Repair mobile desktop-mode keyboard zoom, touch targets, scrolling, and viewport behavior without changing the approved desktop or mobile layouts.
+- [x] Remove 3-day and 4-hour retention messaging from SK Shell connection output while keeping lifecycle controls available in their appropriate workspace UI.
+- [x] Repair mobile desktop-mode keyboard zoom, touch targets, scrolling, and viewport behavior without changing the approved desktop or mobile layouts.
 - [ ] Make the terminal bridge stage IndexedDB and OPFS-resident project files safely when cloud project capacity is full, while preserving isolated terminal and runner capacity.
 - [ ] Separate project workspace, terminal workspace, disposable runner scratch, caches, logs, and protected reserve so a full project-storage lane does not unnecessarily stop safe execution work.
 - [ ] Define per-language secondary execution fallbacks that report unavailable capability honestly and never pretend a public runner supports a persistent shell or multi-file project workspace.
