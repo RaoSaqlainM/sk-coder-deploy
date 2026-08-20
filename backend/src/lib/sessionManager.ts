@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { chmod, mkdir, open, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { COMMAND_TIMEOUT_MS, RUNTIME_IMAGE, SESSION_MAX_BYTES, SESSION_MAX_COUNT, SESSION_TTL_HOURS, WORKSPACE_MAX_BYTES, WORKSPACE_ROOT, WORKSPACE_SAFETY_RESERVE_BYTES } from "./backendConfig.js";
 import { cancelWorkspaceDelete, createWorkspaceRecord, getWorkspaceRecord, incrementWorkspaceRevision, listExpiredWorkspaceRecords, listScheduledWorkspaceRecords, markWorkspaceDeleted, scheduleWorkspaceDelete, setWorkspaceRetention, touchWorkspaceRecord, type RetentionMode } from "./workspaceRegistry.js";
@@ -23,7 +24,22 @@ export type WorkspaceFile = {
     content: string;
     encoding?: "utf8" | "base64";
 };
+export type WorkspaceStageFile = {
+    path: string;
+    size: number;
+    sha256: string;
+    revision?: string;
+};
+type WorkspaceStage = {
+    id: string;
+    sessionId: string;
+    rootPath: string;
+    files: Map<string, WorkspaceStageFile>;
+    completedOffsets: Map<string, Set<number>>;
+};
+const STAGE_CHUNK_BYTES = 4 * 1024 * 1024;
 const sessions = new Map<string, WorkspaceSession>();
+const stages = new Map<string, WorkspaceStage>();
 let dockerReady: boolean | null = null;
 let cleanupStarted = false;
 function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS, stdin = ""): Promise<CommandResult> {
@@ -61,6 +77,9 @@ function safeRelativePath(pathname: string) {
 function workspacePathFor(id: string) {
     return resolve(WORKSPACE_ROOT, id);
 }
+function stageRootFor(sessionId: string, stageId: string) {
+    return resolve(WORKSPACE_ROOT, ".staging", sessionId, stageId);
+}
 function containerNameFor(id: string) {
     return `skcoder-${id.replaceAll("-", "")}`;
 }
@@ -69,6 +88,29 @@ async function checkSize(pathname: string, limit: number, message: string) {
     const bytes = Number(result.stdout.split(/\s+/)[0]);
     if (Number.isFinite(bytes) && bytes >= limit)
         throw new Error(message);
+}
+function stageRelativePath(pathname: string) {
+    const requested = safeRelativePath(pathname);
+    if (requested === ".")
+        throw new Error("A staged file path is required.");
+    return requested;
+}
+function missingOffsets(file: WorkspaceStageFile, completed: Set<number>) {
+    const offsets: number[] = [];
+    for (let offset = 0; offset < file.size; offset += STAGE_CHUNK_BYTES)
+        if (!completed.has(offset))
+            offsets.push(offset);
+    return offsets;
+}
+async function hashFile(pathname: string) {
+    const hash = createHash("sha256");
+    await new Promise<void>((resolveResult, reject) => {
+        const stream = createReadStream(pathname);
+        stream.on("data", (chunk: string | Buffer) => hash.update(chunk));
+        stream.once("error", reject);
+        stream.once("end", resolveResult);
+    });
+    return hash.digest("hex");
 }
 async function ensureCapacity() {
     const [workspaceUsage, disk] = await Promise.all([
@@ -170,15 +212,124 @@ export async function syncWorkspaceFiles(id: string, files: WorkspaceFile[]) {
         await mkdir(dirname(target), { recursive: true, mode: 0o777 });
         await writeFile(target, file.encoding === "base64" ? Buffer.from(file.content, "base64") : file.content, file.encoding === "base64" ? undefined : "utf8");
     }
-    await checkSize(session.workspacePath, SESSION_MAX_BYTES, "Workspace storage limit reached.");
+    await ensureCapacity();
     await incrementWorkspaceRevision(id);
+}
+function describeWorkspaceStage(stage: WorkspaceStage) {
+    return {
+        stageId: stage.id,
+        chunkBytes: STAGE_CHUNK_BYTES,
+        files: [...stage.files.values()].map((file) => ({
+            path: file.path,
+            size: file.size,
+            missingOffsets: missingOffsets(file, stage.completedOffsets.get(file.path) ?? new Set<number>()),
+        })),
+    };
+}
+async function requireWorkspaceStage(sessionId: string, stageId: string) {
+    await getWorkspaceSession(sessionId);
+    const stage = stages.get(stageId);
+    if (!stage || stage.sessionId !== sessionId)
+        throw new Error("Staging session not found or expired.");
+    return stage;
+}
+export async function beginWorkspaceStage(sessionId: string, requestedFiles: WorkspaceStageFile[], existingStageId?: string) {
+    await getWorkspaceSession(sessionId);
+    if (existingStageId) {
+        const existing = await requireWorkspaceStage(sessionId, existingStageId);
+        return describeWorkspaceStage(existing);
+    }
+    if (!Array.isArray(requestedFiles) || requestedFiles.length === 0)
+        throw new Error("A non-empty staging manifest is required.");
+    const files = new Map<string, WorkspaceStageFile>();
+    for (const item of requestedFiles) {
+        const path = stageRelativePath(item.path);
+        if (!Number.isSafeInteger(item.size) || item.size < 0 || !/^[a-f0-9]{64}$/i.test(item.sha256))
+            throw new Error("A staged file requires a valid size and SHA-256 checksum.");
+        if (files.has(path))
+            throw new Error("The staging manifest contains duplicate file paths.");
+        files.set(path, { path, size: item.size, sha256: item.sha256.toLowerCase(), revision: item.revision });
+    }
+    const id = randomUUID();
+    const stage: WorkspaceStage = {
+        id,
+        sessionId,
+        rootPath: stageRootFor(sessionId, id),
+        files,
+        completedOffsets: new Map([...files.keys()].map((path) => [path, new Set<number>()])),
+    };
+    await mkdir(stage.rootPath, { recursive: true, mode: 0o700 });
+    stages.set(id, stage);
+    return describeWorkspaceStage(stage);
+}
+export async function getWorkspaceStageStatus(sessionId: string, stageId: string) {
+    return describeWorkspaceStage(await requireWorkspaceStage(sessionId, stageId));
+}
+export async function writeWorkspaceStageChunk(sessionId: string, stageId: string, filePath: string, offset: number, data: Buffer, checksum?: string) {
+    const stage = await requireWorkspaceStage(sessionId, stageId);
+    const path = stageRelativePath(filePath);
+    const file = stage.files.get(path);
+    if (!file)
+        throw new Error("Chunk path is not part of the staging manifest.");
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset % STAGE_CHUNK_BYTES !== 0)
+        throw new Error("Chunk offset is invalid.");
+    const expectedLength = Math.min(STAGE_CHUNK_BYTES, file.size - offset);
+    if (expectedLength < 0 || data.length !== expectedLength)
+        throw new Error("Chunk length does not match the manifest.");
+    const receivedHash = createHash("sha256").update(data).digest("hex");
+    if (checksum && checksum.toLowerCase() !== receivedHash)
+        throw new Error("Chunk checksum verification failed.");
+    const target = resolve(stage.rootPath, path);
+    if (relative(stage.rootPath, target).startsWith(".."))
+        throw new Error("Staging path escapes the session root.");
+    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+    const handle = await open(target, "a+");
+    try {
+        await handle.write(data, 0, data.length, offset);
+    }
+    finally {
+        await handle.close();
+    }
+    stage.completedOffsets.get(path)?.add(offset);
+    await ensureCapacity();
+    return { path, offset, receivedBytes: data.length, checksum: receivedHash };
+}
+export async function commitWorkspaceStage(sessionId: string, stageId: string) {
+    const session = await getWorkspaceSession(sessionId);
+    const stage = await requireWorkspaceStage(sessionId, stageId);
+    for (const file of stage.files.values()) {
+        const completed = stage.completedOffsets.get(file.path) ?? new Set<number>();
+        if (missingOffsets(file, completed).length > 0)
+            throw new Error(`Staging file is incomplete: ${file.path}`);
+        const staged = resolve(stage.rootPath, file.path);
+        if ((await stat(staged)).size !== file.size || (await hashFile(staged)) !== file.sha256)
+            throw new Error(`Staging verification failed: ${file.path}`);
+    }
+    for (const file of stage.files.values()) {
+        const staged = resolve(stage.rootPath, file.path);
+        const target = resolve(session.workspacePath, file.path);
+        if (relative(session.workspacePath, target).startsWith(".."))
+            throw new Error("Workspace path escapes the session root.");
+        await mkdir(dirname(target), { recursive: true, mode: 0o777 });
+        await rename(staged, target);
+    }
+    stages.delete(stage.id);
+    await rm(stage.rootPath, { recursive: true, force: true });
+    await ensureCapacity();
+    await incrementWorkspaceRevision(sessionId);
+    return { revision: (await getWorkspaceLifecycle(sessionId)).revision };
+}
+export async function removeWorkspaceStage(sessionId: string, stageId: string) {
+    const stage = await requireWorkspaceStage(sessionId, stageId);
+    stages.delete(stage.id);
+    await rm(stage.rootPath, { recursive: true, force: true });
 }
 export async function runWorkspaceCommand(id: string, command: string, cwd = "/", stdin = "") {
     const session = await getWorkspaceSession(id);
     const requested = safeRelativePath(cwd);
     const workspaceCwd = requested === "." ? "/workspace" : `/workspace/${requested.replaceAll("\\", "/")}`;
     const result = await run("docker", ["exec", "-i", "--user", "0:0", "-e", "HOME=/workspace", "-w", workspaceCwd, session.containerName, "bash", "-lc", command], COMMAND_TIMEOUT_MS, stdin);
-    await checkSize(session.workspacePath, SESSION_MAX_BYTES, "Workspace storage limit reached.");
+    await ensureCapacity();
     await incrementWorkspaceRevision(id);
     return result;
 }
@@ -294,8 +445,14 @@ async function closeWorkspaceSession(id: string) {
     const containerName = session?.containerName ?? containerNameFor(id);
     const workspacePath = session?.workspacePath ?? workspacePathFor(id);
     sessions.delete(id);
+    for (const stage of stages.values())
+        if (stage.sessionId === id)
+            stages.delete(stage.id);
     await run("docker", ["rm", "-f", containerName], 10000);
-    await rm(workspacePath, { recursive: true, force: true });
+    await Promise.all([
+        rm(workspacePath, { recursive: true, force: true }),
+        rm(resolve(WORKSPACE_ROOT, ".staging", id), { recursive: true, force: true }),
+    ]);
     await markWorkspaceDeleted(id);
 }
 async function removeExpiredWorkspaceSessions() {

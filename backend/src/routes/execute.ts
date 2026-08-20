@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { cancelWorkspaceDeletion, createWorkspaceSession, getWorkspaceLifecycle, runCodeInWorkspace, runEphemeralCode, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus } from "../lib/sessionManager.js";
+import express, { Router } from "express";
+import { beginWorkspaceStage, cancelWorkspaceDeletion, commitWorkspaceStage, createWorkspaceSession, getWorkspaceLifecycle, getWorkspaceStageStatus, removeWorkspaceStage, runCodeInWorkspace, runEphemeralCode, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus, writeWorkspaceStageChunk } from "../lib/sessionManager.js";
 import type { RetentionMode } from "../lib/workspaceRegistry.js";
 import { installedRuntimes } from "../lib/runtimeRegistry.js";
 const router = Router();
@@ -80,6 +80,54 @@ router.post("/execute/sessions/:id/files", async (req, res) => {
     }
     catch (error) {
         res.status(400).json({ error: error instanceof Error ? error.message : "Workspace synchronization failed." });
+    }
+});
+router.post("/execute/sessions/:id/stage/manifest", async (req, res) => {
+    const files = req.body?.files;
+    if (!Array.isArray(files))
+        return res.status(400).json({ error: "files must be an array" });
+    try {
+        res.status(201).json(await beginWorkspaceStage(req.params.id, files, typeof req.body?.stageId === "string" ? req.body.stageId : undefined));
+    }
+    catch (error) {
+        res.status(400).json({ error: error instanceof Error ? error.message : "Unable to create staging session." });
+    }
+});
+router.get("/execute/sessions/:id/stage/:stageId", async (req, res) => {
+    try {
+        res.json(await getWorkspaceStageStatus(req.params.id, req.params.stageId));
+    }
+    catch (error) {
+        res.status(404).json({ error: error instanceof Error ? error.message : "Staging session not found." });
+    }
+});
+router.put("/execute/sessions/:id/stage/:stageId/chunk", express.raw({ type: "application/octet-stream", limit: "8mb" }), async (req, res) => {
+    const path = req.header("x-stage-path");
+    const offset = Number(req.header("x-stage-offset"));
+    if (!path || !Number.isSafeInteger(offset) || !Buffer.isBuffer(req.body))
+        return res.status(400).json({ error: "Binary body, x-stage-path, and x-stage-offset are required." });
+    try {
+        res.status(201).json(await writeWorkspaceStageChunk(req.params.id, req.params.stageId, path, offset, req.body, req.header("x-stage-checksum") ?? undefined));
+    }
+    catch (error) {
+        res.status(400).json({ error: error instanceof Error ? error.message : "Chunk transfer failed." });
+    }
+});
+router.post("/execute/sessions/:id/stage/:stageId/commit", async (req, res) => {
+    try {
+        res.json(await commitWorkspaceStage(req.params.id, req.params.stageId));
+    }
+    catch (error) {
+        res.status(400).json({ error: error instanceof Error ? error.message : "Staging commit failed." });
+    }
+});
+router.delete("/execute/sessions/:id/stage/:stageId", async (req, res) => {
+    try {
+        await removeWorkspaceStage(req.params.id, req.params.stageId);
+        res.status(204).end();
+    }
+    catch (error) {
+        res.status(404).json({ error: error instanceof Error ? error.message : "Staging session not found." });
     }
 });
 router.post("/execute/sessions/:id/command", async (req, res) => {

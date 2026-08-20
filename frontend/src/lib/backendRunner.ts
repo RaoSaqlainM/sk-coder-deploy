@@ -26,6 +26,21 @@ export type WorkspaceFilePayload = {
     content: string;
     encoding?: "utf8" | "base64";
 };
+export type WorkspaceStageFile = {
+    path: string;
+    size: number;
+    sha256: string;
+    revision?: string;
+};
+export type WorkspaceStageStatus = {
+    stageId: string;
+    chunkBytes: number;
+    files: Array<{
+        path: string;
+        size: number;
+        missingOffsets: number[];
+    }>;
+};
 function getDeviceId(): string {
     let id = localStorage.getItem("sk-device-id");
     if (!id) {
@@ -117,6 +132,45 @@ export async function syncWorkspaceFiles(sessionId: string, files: WorkspaceFile
         throw new Error((await response.json().catch(() => ({ error: response.statusText })) as {
             error?: string;
         }).error || response.statusText);
+}
+export async function sha256Blob(blob: Blob) {
+    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+export async function beginWorkspaceStage(sessionId: string, files: WorkspaceStageFile[], stageId?: string) {
+    return workspaceRequest<WorkspaceStageStatus>(`/execute/sessions/${encodeURIComponent(sessionId)}/stage/manifest`, "POST", { files, ...(stageId ? { stageId } : {}) });
+}
+export async function getWorkspaceStageStatus(sessionId: string, stageId: string) {
+    return workspaceRequest<WorkspaceStageStatus>(`/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}`, "GET");
+}
+export async function uploadWorkspaceStageChunk(sessionId: string, stageId: string, path: string, offset: number, chunk: Blob) {
+    const checksum = await sha256Blob(chunk);
+    const response = await fetch(`${BASE}/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}/chunk`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/octet-stream",
+            "X-Device-Id": getDeviceId(),
+            "X-Stage-Path": path,
+            "X-Stage-Offset": String(offset),
+            "X-Stage-Checksum": checksum,
+        },
+        body: chunk,
+        signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok)
+        throw new Error((await response.json().catch(() => ({ error: response.statusText })) as { error?: string }).error || response.statusText);
+}
+export async function commitWorkspaceStage(sessionId: string, stageId: string) {
+    return workspaceRequest<{ revision: number }>(`/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}/commit`, "POST");
+}
+export async function removeWorkspaceStage(sessionId: string, stageId: string) {
+    const response = await fetch(`${BASE}/execute/sessions/${encodeURIComponent(sessionId)}/stage/${encodeURIComponent(stageId)}`, {
+        method: "DELETE",
+        headers: { "X-Device-Id": getDeviceId() },
+        signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok && response.status !== 404)
+        throw new Error(response.statusText);
 }
 export interface RuntimeInfo {
     name: string;
