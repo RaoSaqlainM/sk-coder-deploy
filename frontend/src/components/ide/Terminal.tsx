@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useIDEStore } from "@/store/ideStore";
 import { execute, type ExecResponse } from "@/lib/executorChain";
-import { beginWorkspaceStage, cancelWorkspaceDelete, commitWorkspaceStage, createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, getWorkspaceStageStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, type WorkspaceFilePayload, type WorkspaceLifecycle, uploadWorkspaceStageChunk } from "@/lib/backendRunner";
+import { beginWorkspaceStage, commitWorkspaceStage, createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, getWorkspaceStageStatus, heartbeatWorkspace, isBackendAvailable, type WorkspaceFilePayload, type WorkspaceLifecycle, uploadWorkspaceStageChunk } from "@/lib/backendRunner";
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient";
 import { parseErrors } from "@/components/ide/ErrorPanel";
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy";
@@ -1118,37 +1118,6 @@ export default function MultiTerminal() {
           </div>)}
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 4, gap: 4 }}>
-          {workspaceLifecycle && workspaceSessionIdRef.current && (<>
-              <span title={workspaceLifecycle.state === "scheduled-delete" && workspaceLifecycle.deleteUndoUntil ? `Deletion scheduled. Undo available until ${new Date(workspaceLifecycle.deleteUndoUntil).toLocaleString()}` : `Workspace expires ${new Date(workspaceLifecycle.expiresAt).toLocaleString()}`} style={{ color: workspaceLifecycle.state === "scheduled-delete" ? "#e3b341" : "var(--green)", fontSize: 10, whiteSpace: "nowrap" }}>
-                Workspace · {workspaceLifecycle.state === "scheduled-delete" ? "Delete scheduled" : workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
-              </span>
-              {workspaceLifecycle.state === "scheduled-delete" ? <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
-                const sessionId = workspaceSessionIdRef.current;
-                if (!sessionId)
-                    return;
-                void cancelWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
-            }}>Undo delete</button> : <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
-                const sessionId = workspaceSessionIdRef.current;
-                if (!sessionId)
-                    return;
-                void setWorkspaceRetention(sessionId, "three-days").then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
-            }}>Keep 3d</button>}
-              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
-                const sessionId = workspaceSessionIdRef.current;
-                if (!sessionId || !window.confirm("Schedule this cloud workspace for deletion four hours after you leave?"))
-                    return;
-                void setWorkspaceRetention(sessionId, "four-hours").then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
-            }}>Delete in 4h</button>
-              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem", color: "#f97583" }} onClick={() => {
-                const sessionId = workspaceSessionIdRef.current;
-                if (!sessionId || !window.confirm("Schedule deletion with a one-hour undo period?"))
-                    return;
-                void scheduleWorkspaceDelete(sessionId).then((lifecycle) => {
-                    tabs.forEach((tab) => clearTerminalHistory(tab.id));
-                    setWorkspaceLifecycle(lifecycle);
-                }).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
-            }}>Delete</button>
-            </>)}
           <button className="btn-icon" onClick={() => {
             const tab = tabs.find((item) => item.id === activeTab);
             if (window.confirm(`Clear the history for ${tab?.label ?? "this terminal"}?`))

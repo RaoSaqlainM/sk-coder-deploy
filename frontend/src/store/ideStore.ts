@@ -97,14 +97,14 @@ async function deleteIndexedValue(key: string): Promise<void> {
     });
 }
 const resilientStorage: StateStorage = {
-    getItem: async (name) => localStorage.getItem(name) ?? await getIndexedValue(name),
+    getItem: async (name) => await getIndexedValue(name) ?? localStorage.getItem(name),
     setItem: async (name, value) => {
         try {
             localStorage.setItem(name, value);
         }
         catch {
-            await setIndexedValue(name, value);
         }
+        await setIndexedValue(name, value);
     },
     removeItem: async (name) => {
         try {

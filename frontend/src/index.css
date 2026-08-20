@@ -69,8 +69,11 @@ input, textarea, select {
   transition: border-color var(--transition);
   width: 100%;
 }
-@media (max-width: 1024px) and (pointer: coarse) {
+@media (max-width: 1024px) {
   input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px; }
+  button, [role="button"], .file-node, .bottom-nav-item, .terminal-tab, .multi-term-tab { touch-action: manipulation; }
+  .file-tree, .terminal-output, .ai-chat-messages, .settings-content, .preview-device-wrap { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  .file-node, .bottom-nav-item, .terminal-tab, .multi-term-tab { min-height: 32px; }
 }
 input:focus, textarea:focus, select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px rgba(0,122,204,0.15); }
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
