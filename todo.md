@@ -109,3 +109,9 @@
 - [x] Make GitHub push return per-file permission, conflict, and binary-file results instead of displaying a generic successful commit message when some files fail.
 - [x] Add clear AI settings for an OpenAI-compatible base URL and model so any provider with a documented compatible endpoint can be connected without relying on a key-prefix guess.
 - [ ] Add a provider-adapter process for non-compatible AI APIs so they are presented as unsupported until their official request format is implemented and tested.
+- [x] Reconfigure the Oracle production capacity policy for a 50 GB primary retained user-workspace pool with separately bounded staging, runner scratch, runtime image, log, and safety-reserve lanes.
+- [x] Implement the backend timing foundation for the exact close-tab lifecycle: explicit Delete scheduling uses four hours, “I will be back” uses a new 72-hour deadline, and heartbeat activity cannot silently extend that deadline.
+- [ ] Keep browser-only IndexedDB projects outside the server-retention prompt and explain that browser-data clearing is controlled by the user’s browser, not the Oracle server.
+- [ ] Build a separate administrator dashboard with aggregate active workspace, terminal, runner, storage-lane, cleanup, and current-user metrics plus confirmation-gated offline-workspace cleanup controls.
+- [ ] Define protected automatic cleanup for terminal and runner scratch, package artifacts, staging data, previews, logs, and outputs so they expire independently of retained user source files.
+- [ ] Define a staged language-image catalogue and queue strategy for expanding from verified languages toward hundreds of compilers without loading every toolchain into one unsafe runtime image.

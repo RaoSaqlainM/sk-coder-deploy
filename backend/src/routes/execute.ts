@@ -29,7 +29,7 @@ router.get("/execute/sessions/:id", async (req, res) => {
 });
 router.post("/execute/sessions/:id/heartbeat", async (req, res) => {
     try {
-        const lifecycle = await updateWorkspaceRetention(req.params.id, req.body?.retentionMode === "four-hours" ? "four-hours" : "three-days");
+        const lifecycle = await getWorkspaceLifecycle(req.params.id);
         res.json({ ...lifecycle, tier: "oracle-workspace" });
     }
     catch (error) {
@@ -38,8 +38,8 @@ router.post("/execute/sessions/:id/heartbeat", async (req, res) => {
 });
 router.put("/execute/sessions/:id/retention", async (req, res) => {
     const requestedRetention = req.body?.retentionMode;
-    if (requestedRetention !== "three-days" && requestedRetention !== "four-hours")
-        return res.status(400).json({ error: "retentionMode must be three-days or four-hours" });
+    if (requestedRetention !== "three-days")
+        return res.status(400).json({ error: "retentionMode must be three-days" });
     try {
         res.json({ ...(await updateWorkspaceRetention(req.params.id, requestedRetention)), tier: "oracle-workspace" });
     }

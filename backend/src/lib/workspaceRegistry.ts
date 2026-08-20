@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { WORKSPACE_METADATA_PATH } from "./backendConfig.js";
 export type RetentionMode = "three-days" | "four-hours";
+const RETAINED_WORKSPACE_HOURS = 72;
+const SCHEDULED_DELETE_HOURS = 4;
 export type WorkspaceRecord = {
     id: string;
     createdAt: number;
@@ -49,7 +51,7 @@ function queuePersist() {
 export async function createWorkspaceRecord(id: string, quotaBytes: number, retentionMode: RetentionMode = "three-days") {
     const registry = await readRegistry();
     const now = Date.now();
-    const duration = retentionMode === "four-hours" ? 4 : 72;
+    const duration = retentionMode === "four-hours" ? SCHEDULED_DELETE_HOURS : RETAINED_WORKSPACE_HOURS;
     const record: WorkspaceRecord = {
         id,
         createdAt: now,
@@ -73,11 +75,7 @@ export async function touchWorkspaceRecord(id: string) {
     const record = registry.records.find((item) => item.id === id);
     if (!record)
         return null;
-    const now = Date.now();
-    const duration = record.retentionMode === "four-hours" ? 4 : 72;
-    record.lastHeartbeatAt = now;
-    record.expiresAt = now + duration * 60 * 60 * 1000;
-    record.state = "active";
+    record.lastHeartbeatAt = Date.now();
     await queuePersist();
     return record;
 }
@@ -87,8 +85,8 @@ export async function setWorkspaceRetention(id: string, retentionMode: Retention
     if (!record)
         return null;
     const now = Date.now();
-    const duration = retentionMode === "four-hours" ? 4 : 72;
-    record.retentionMode = retentionMode;
+    const duration = retentionMode === "four-hours" ? SCHEDULED_DELETE_HOURS : RETAINED_WORKSPACE_HOURS;
+    record.retentionMode = retentionMode === "four-hours" ? "three-days" : retentionMode;
     record.lastHeartbeatAt = now;
     record.expiresAt = now + duration * 60 * 60 * 1000;
     record.state = "active";
@@ -96,14 +94,14 @@ export async function setWorkspaceRetention(id: string, retentionMode: Retention
     await queuePersist();
     return record;
 }
-export async function scheduleWorkspaceDelete(id: string, undoMinutes = 60) {
+export async function scheduleWorkspaceDelete(id: string) {
     const registry = await readRegistry();
     const record = registry.records.find((item) => item.id === id);
     if (!record)
         return null;
     const now = Date.now();
     record.state = "scheduled-delete";
-    record.expiresAt = now + undoMinutes * 60 * 1000;
+    record.expiresAt = now + SCHEDULED_DELETE_HOURS * 60 * 60 * 1000;
     record.deleteUndoUntil = record.expiresAt;
     await queuePersist();
     return record;
@@ -117,7 +115,7 @@ export async function cancelWorkspaceDelete(id: string) {
     record.state = "active";
     record.deleteUndoUntil = null;
     record.lastHeartbeatAt = now;
-    record.expiresAt = now + (record.retentionMode === "four-hours" ? 4 : 72) * 60 * 60 * 1000;
+    record.expiresAt = now + RETAINED_WORKSPACE_HOURS * 60 * 60 * 1000;
     await queuePersist();
     return record;
 }
