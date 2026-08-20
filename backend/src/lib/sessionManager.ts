@@ -112,16 +112,10 @@ async function hashFile(pathname: string) {
     });
     return hash.digest("hex");
 }
-async function ensureCapacity() {
-    const [workspaceUsage, disk] = await Promise.all([
-        run("du", ["-sb", WORKSPACE_ROOT], 5000),
-        run("df", ["-B1", "--output=avail", WORKSPACE_ROOT], 5000),
-    ]);
-    const usedBytes = Number(workspaceUsage.stdout.split(/\s+/)[0]);
+async function ensureCapacity(incomingBytes = 0) {
+    const disk = await run("df", ["-B1", "--output=avail", WORKSPACE_ROOT], 5000);
     const freeBytes = Number(disk.stdout.trim().split(/\s+/).at(-1));
-    if (Number.isFinite(usedBytes) && usedBytes >= WORKSPACE_MAX_BYTES)
-        throw new Error("Cloud workspace capacity is full. Source files remain available in browser storage.");
-    if (Number.isFinite(freeBytes) && freeBytes < WORKSPACE_SAFETY_RESERVE_BYTES)
+    if (Number.isFinite(freeBytes) && freeBytes - incomingBytes < WORKSPACE_SAFETY_RESERVE_BYTES)
         throw new Error("Cloud runtime is preserving its safety reserve. Source files remain available in browser storage.");
 }
 async function activeRuntimeCount() {
@@ -148,7 +142,6 @@ export async function createWorkspaceSession(options?: {
         throw new Error("The server has reached its active workspace limit.");
     await mkdir(WORKSPACE_ROOT, { recursive: true, mode: 0o700 });
     await ensureCapacity();
-    await checkSize(WORKSPACE_ROOT, WORKSPACE_MAX_BYTES, "Cloud workspace capacity is full. Source files remain available in browser storage.");
     const id = randomUUID();
     const workspacePath = workspacePathFor(id);
     const containerName = containerNameFor(id);
@@ -196,8 +189,6 @@ export async function getWorkspaceSession(id: string) {
 }
 export async function syncWorkspaceFiles(id: string, files: WorkspaceFile[]) {
     const session = await getWorkspaceSession(id);
-    if (files.length > 5000)
-        throw new Error("Workspace file limit reached.");
     for (const file of files) {
         if (typeof file.path !== "string" || typeof file.content !== "string")
             throw new Error("Invalid workspace file payload.");
@@ -279,6 +270,7 @@ export async function writeWorkspaceStageChunk(sessionId: string, stageId: strin
     const receivedHash = createHash("sha256").update(data).digest("hex");
     if (checksum && checksum.toLowerCase() !== receivedHash)
         throw new Error("Chunk checksum verification failed.");
+    await ensureCapacity(data.length);
     const target = resolve(stage.rootPath, path);
     if (relative(stage.rootPath, target).startsWith(".."))
         throw new Error("Staging path escapes the session root.");
