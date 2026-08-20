@@ -144,3 +144,6 @@ export async function listExpiredWorkspaceRecords(now = Date.now()) {
 export async function listScheduledWorkspaceRecords() {
     return (await readRegistry()).records.filter((record) => record.state === "scheduled-delete");
 }
+export async function listWorkspaceRecords() {
+    return [...(await readRegistry()).records];
+}
