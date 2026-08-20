@@ -43,3 +43,13 @@
 - [ ] Verify the live Vercel interface against the temporary backend path and repair every reproducible runtime defect found during the test matrix.
 - [ ] Requery the active tunnel with a cache-busting request and confirm the intended constrained workspace limits before executing language and npm tests.
 - [ ] Replace the named-volume workspace mount with a host bind mount shared by the backend container and dynamically created runtime containers so source-run paths exist inside Docker.
+- [ ] Replace the foreground temporary tunnel with a service-managed persistent backend connection strategy that survives SSH logout and host restart.
+- [ ] Audit and repair workspace retention so three-day retention, four-hour deletion, terminal history, files, folders, and APK-workspace state follow one consistent lifecycle.
+- [ ] Audit large-file import behavior and design a safe path toward 1 GB project handling without exceeding browser, Vercel, or the 28 GB AWS backend capacity.
+- [ ] Audit APK editor state integration so APK assets and edits participate consistently in the selected workspace lifecycle.
+- [ ] Audit mobile desktop-mode keyboard zoom and viewport behavior while preserving the approved mobile layout.
+- [ ] Produce an honest runtime classification for requested languages, distinguishing real runnable support, preview/edit-only support, and toolchains requiring an expanded server image.
+- [ ] Replace the expired temporary tunnel values in Vercel with https://partnerships-smile-thu-sierra.trycloudflare.com and retest the live frontend connection.
+- [ ] Verify whether https://sk-code.vercel.app is deploying the intended frontend-only repository and contains the current temporary API and WebSocket endpoint values.
+- [ ] Correct runtime workspace ownership so npm, package locks, project files, and log directories are writable from SK Shell.
+- [ ] Clear the offline banner after a successful late WebSocket connection so terminal status matches the live isolated workspace session.

@@ -288,8 +288,12 @@ export default function MultiTerminal() {
         if (!settings.backend.enabled || terminalSocketsRef.current.has(tabId))
             return;
         const savedSessionId = requestedSessionId ?? workspaceSessionIdRef.current ?? localStorage.getItem("sk-coder-workspace-session-id");
-        const socket = createTerminalWebSocket({
+        let socket: ReturnType<typeof createTerminalWebSocket> | null = null;
+        const isCurrentSocket = () => socket !== null && terminalSocketsRef.current.get(tabId) === socket;
+        socket = createTerminalWebSocket({
             onReady: (sessionId) => {
+                if (!isCurrentSocket())
+                    return;
                 terminalErrorMessagesRef.current.delete(tabId);
                 setWorkspaceConnection("connected");
                 workspaceSessionIdRef.current = sessionId;
@@ -297,10 +301,21 @@ export default function MultiTerminal() {
                 addLine(tabId, "success", savedSessionId ? "Connected to shared isolated workspace session." : "Connected to isolated workspace session.");
                 void getWorkspaceLifecycle(sessionId).then(setWorkspaceLifecycle).catch(() => setWorkspaceLifecycle(null));
             },
-            onStdout: (data) => addLines(tabId, "output", data),
-            onStderr: (data) => addLines(tabId, "error", data),
-            onExit: (code) => addLine(tabId, "info", `Process exited with code ${code}`),
+            onStdout: (data) => {
+                if (isCurrentSocket())
+                    addLines(tabId, "output", data);
+            },
+            onStderr: (data) => {
+                if (isCurrentSocket())
+                    addLines(tabId, "error", data);
+            },
+            onExit: (code) => {
+                if (isCurrentSocket())
+                    addLine(tabId, "info", `Process exited with code ${code}`);
+            },
             onError: (message) => {
+                if (!isCurrentSocket())
+                    return;
                 terminalSocketsRef.current.delete(tabId);
                 if (savedSessionId) {
                     localStorage.removeItem("sk-coder-workspace-session-id");

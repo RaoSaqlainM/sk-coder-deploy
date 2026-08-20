@@ -165,7 +165,7 @@ export async function runWorkspaceCommand(id: string, command: string, cwd = "/"
     const session = await getWorkspaceSession(id);
     const requested = safeRelativePath(cwd);
     const workspaceCwd = requested === "." ? "/workspace" : `/workspace/${requested.replaceAll("\\", "/")}`;
-    const result = await run("docker", ["exec", "-i", "-e", "HOME=/workspace", "-w", workspaceCwd, session.containerName, "bash", "-lc", command], COMMAND_TIMEOUT_MS, stdin);
+    const result = await run("docker", ["exec", "-i", "--user", "0:0", "-e", "HOME=/workspace", "-w", workspaceCwd, session.containerName, "bash", "-lc", command], COMMAND_TIMEOUT_MS, stdin);
     await checkSize(session.workspacePath, SESSION_MAX_BYTES, "Workspace storage limit reached.");
     await incrementWorkspaceRevision(id);
     return result;
@@ -202,7 +202,7 @@ export async function runCodeInWorkspace(id: string, language: string, code: str
 }
 export async function openInteractiveTerminal(id: string, onStdout: (value: string) => void, onStderr: (value: string) => void, onClose: (code: number) => void) {
     const session = await getWorkspaceSession(id);
-    const proc = spawn("docker", ["exec", "-i", "-e", "HOME=/workspace", "-w", "/workspace", session.containerName, "bash", "--noprofile", "--norc"], { env: { ...process.env, TERM: "xterm-256color", HOME: "/workspace" } });
+    const proc = spawn("docker", ["exec", "-i", "--user", "0:0", "-e", "HOME=/workspace", "-w", "/workspace", session.containerName, "bash", "--noprofile", "--norc"], { env: { ...process.env, TERM: "xterm-256color", HOME: "/workspace" } });
     proc.stdout.on("data", (value: Buffer) => onStdout(value.toString()));
     proc.stderr.on("data", (value: Buffer) => onStderr(value.toString()));
     proc.once("close", (code) => onClose(code ?? 1));
