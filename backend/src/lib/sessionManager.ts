@@ -192,7 +192,7 @@ export async function runCodeInWorkspace(id: string, language: string, code: str
         bash: { filename: "main.sh", command: "bash main.sh" }, shell: { filename: "main.sh", command: "bash main.sh" },
         java: { filename: "Main.java", command: "javac Main.java && java Main" }, c: { filename: "main.c", command: "gcc main.c -O2 -o main && ./main" }, cpp: { filename: "main.cpp", command: "g++ main.cpp -O2 -o main && ./main" },
         cc: { filename: "main.cpp", command: "g++ main.cpp -O2 -o main && ./main" }, kotlin: { filename: "Main.kt", command: "kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar" }, kt: { filename: "Main.kt", command: "kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar" },
-        rust: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, rs: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, go: { filename: "main.go", command: "go run main.go" }, php: { filename: "main.php", command: "php main.php" }, ruby: { filename: "main.rb", command: "ruby main.rb" }, rb: { filename: "main.rb", command: "ruby main.rb" },
+        rust: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, rs: { filename: "main.rs", command: "rustc main.rs -O -o main && ./main" }, go: { filename: "main.go", command: "mkdir -p .go-tmp && TMPDIR=$PWD/.go-tmp go run main.go" }, php: { filename: "main.php", command: "php main.php" }, ruby: { filename: "main.rb", command: "ruby main.rb" }, rb: { filename: "main.rb", command: "ruby main.rb" },
     };
     const selected = config[language.toLowerCase()];
     if (!selected)

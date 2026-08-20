@@ -58,3 +58,5 @@
 - [x] Reconcile and safely clean stale runtime containers when the backend restarts so lost in-memory session records cannot leave capacity-consuming orphan sessions behind.
 - [x] Preserve browser-persistent source work when the constrained cloud workspace reaches its quota while retaining controlled temporary SK Shell and language-runner execution capacity.
 - [x] Diagnose and repair the ccafc81 regression causing the live `/execute/runtimes` endpoint to return a 502 response after the capacity update.
+- [ ] Stabilize the existing deployment by separating IndexedDB-backed project persistence from disposable execution runtimes and validating each primary language path before the next live release.
+- [x] Repair Go source execution so its temporary compiled binary runs from the disposable workspace rather than the non-executable `/tmp` mount.
