@@ -91,7 +91,8 @@ export async function setWorkspaceRetention(id: string, retentionMode: Retention
     record.retentionMode = retentionMode;
     record.lastHeartbeatAt = now;
     record.expiresAt = now + duration * 60 * 60 * 1000;
-    record.state = retentionMode === "four-hours" ? "scheduled-delete" : "active";
+    record.state = "active";
+    record.deleteUndoUntil = null;
     await queuePersist();
     return record;
 }
