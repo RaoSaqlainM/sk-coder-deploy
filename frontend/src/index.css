@@ -157,7 +157,7 @@ select { cursor: pointer; }
 .topbar-panel-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .topbar-panel-btn.active { background: var(--bg-active); color: var(--accent); }
 
-.topbar-actions { display: flex; align-items: center; gap: 0.25rem; margin-left: 0.5rem; flex-shrink: 0; }
+.topbar-actions { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; flex-shrink: 0; }
 
 .topbar-run-btn {
   display: flex; align-items: center; gap: 0.35rem;

@@ -225,6 +225,18 @@ export default function ContextMenu() {
         }
         setContextMenu(null);
     }
+    function handlePreviewFile() {
+        if (!node || node.type !== "file")
+            return;
+        openTab(node);
+        setPreviewResult(null);
+        setIsRunning(false);
+        setPreviewPath(node.path);
+        setPreviewContent(buildPreview(fileTree, node.path));
+        refreshPreview();
+        setActivePanel("preview");
+        setContextMenu(null);
+    }
     async function handleRunFile() {
         if (!node || node.type !== "file")
             return;
@@ -283,7 +295,7 @@ export default function ContextMenu() {
     return (<div className="context-menu" ref={ref} style={{ left: menuLeft, top: menuTop }}>
       {node?.type === "file" && (<div className="context-menu-item" onClick={handleOpen}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          {isDirectPreviewFile(node) ? previewLabelFor(node) : "Open in Editor"}
+          {"Open in Editor"}
         </div>)}
 
 
@@ -298,6 +310,14 @@ export default function ContextMenu() {
               </div>))}
           </div>)}
       </div>
+
+      {node?.type === "file" && fileCapability === "preview" && (<>
+          <div className="context-menu-divider"/>
+          <div className="context-menu-item" onClick={handlePreviewFile}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            {previewLabelFor(node)}
+          </div>
+        </>)}
 
       {node?.type === "file" && fileCapability === "run" && (<>
           <div className="context-menu-divider"/>

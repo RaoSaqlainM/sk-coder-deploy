@@ -101,10 +101,7 @@ function selectedNodes(nodes: FileNode[], paths: Set<string>): FileNode[] {
 function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     const { openTab, expandedFolders, toggleFolder, setContextMenu, renameNodeId, setRenameNodeId, renameNode, moveNode, setDragOver, dragOverId, setActivePanel, setSidebarOpen, setPreviewPath, setPreviewResult, selectedPaths, selectionMode, batchOperation, setSelectionMode, toggleSelectedPath, moveNodes, copyNodes, } = useIDEStore();
     const [renameValue, setRenameValue] = useState(node.name);
-    const [armedForOpen, setArmedForOpen] = useState(false);
     const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const openTapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastOpenTapAtRef = useRef(0);
     const expanded = expandedFolders.has(node.path);
     function clearLongPress() {
         if (longPressRef.current)
@@ -112,11 +109,6 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
         longPressRef.current = null;
     }
     function openFile() {
-        if (openTapRef.current)
-            clearTimeout(openTapRef.current);
-        openTapRef.current = null;
-        lastOpenTapAtRef.current = 0;
-        setArmedForOpen(false);
         openTab(node);
         if (isDirectPreviewFile(node)) {
             setPreviewResult(null);
@@ -147,19 +139,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
             toggleFolder(node.path);
         }
         else {
-            const now = Date.now();
-            if (now - lastOpenTapAtRef.current < 420) {
-                openFile();
-                return;
-            }
-            lastOpenTapAtRef.current = now;
-            setArmedForOpen(true);
-            if (openTapRef.current)
-                clearTimeout(openTapRef.current);
-            openTapRef.current = setTimeout(() => {
-                lastOpenTapAtRef.current = 0;
-                setArmedForOpen(false);
-            }, 420);
+            openFile();
         }
     }
     function handlePointerDown(event: React.PointerEvent) {
@@ -216,7 +196,7 @@ function FileNodeItem({ node, depth, activePath }: FileNodeProps) {
     const isRenaming = renameNodeId === node.id;
     const isDragOver = dragOverId === node.id;
     return (<>
-      <div className={`file-node ${isActive ? "active" : ""} ${armedForOpen ? "armed" : ""} ${isDragOver ? "drag-over" : ""} ${selectedPaths.has(node.path) ? "selected" : ""} ${batchOperation && node.type === "folder" ? "batch-target" : ""}`} style={{ paddingLeft: `${0.4 + depth * 1}rem` }} onClick={handleClick} onContextMenu={handleContextMenu} onPointerDown={handlePointerDown} onPointerUp={clearLongPress} onPointerCancel={clearLongPress} onPointerLeave={clearLongPress} draggable={!selectionMode} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} title={node.path}>
+      <div className={`file-node ${isActive ? "active" : ""} ${isDragOver ? "drag-over" : ""} ${selectedPaths.has(node.path) ? "selected" : ""} ${batchOperation && node.type === "folder" ? "batch-target" : ""}`} style={{ paddingLeft: `${0.4 + depth * 1}rem` }} onClick={handleClick} onContextMenu={handleContextMenu} onPointerDown={handlePointerDown} onPointerUp={clearLongPress} onPointerCancel={clearLongPress} onPointerLeave={clearLongPress} draggable={!selectionMode} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} title={node.path}>
         {node.type === "folder" && (<svg className={`file-node-chevron ${expanded ? "open" : ""}`} width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="9 18 15 12 9 6"/>
           </svg>)}
@@ -253,7 +233,7 @@ export default function FileExplorer() {
         try {
             const status = await prepareBrowserProjectImport(totalBytes);
             if (status.available && !status.persistent)
-                toast.message(`Importing ${formatBytes(totalBytes)} into browser storage. This browser did not grant persistent storage, so keep an exported backup.`);
+                toast.message(`Importing ${formatBytes(totalBytes)}. Your browser did not approve extra persistence, but the import can continue. Export a backup when your project is important.`);
         }
         catch (error) {
             toast.error(error instanceof Error ? error.message : "This device cannot reserve enough browser storage for the selected import.");

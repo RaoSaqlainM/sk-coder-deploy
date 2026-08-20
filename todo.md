@@ -93,3 +93,9 @@
 - [ ] Separate project workspace, terminal workspace, disposable runner scratch, caches, logs, and protected reserve so a full project-storage lane does not unnecessarily stop safe execution work.
 - [ ] Define per-language secondary execution fallbacks that report unavailable capability honestly and never pretend a public runner supports a persistent shell or multi-file project workspace.
 - [ ] Evaluate Render as an optional always-on backend deployment target alongside the AWS/Oracle backend, without replacing the required isolated Docker runtime model unless it supports the same controls.
+- [x] Verify the source and deployment repository layout, then provide a current frontend-only preview of the Oracle-ready source rather than the stale Vercel deployment.
+- [x] Reword the browser persistence-request notice so it accurately explains that import can continue while recommending an exported backup after the browser declines persistence.
+- [x] Open an editor-capable file directly in the Editor panel when the user selects it from the explorer.
+- [x] Restore one automatic file-type-aware action surface that exposes only valid Run, Compile, or Preview actions for the selected file.
+- [x] Move the Manual and Settings controls to the requested right-side header location without changing the approved workspace layout.
+- [x] Test editor navigation, HTML preview, media preview, and supported source run actions before publishing the updated frontend preview.
