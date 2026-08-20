@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useIDEStore } from "@/store/ideStore";
 import { execute, type ExecResponse } from "@/lib/executorChain";
-import { createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner";
+import { cancelWorkspaceDelete, createTerminalWebSocket, getWorkspaceLifecycle, getWorkspaceRuntimeStatus, heartbeatWorkspace, isBackendAvailable, scheduleWorkspaceDelete, setWorkspaceRetention, syncWorkspaceFiles, type WorkspaceFilePayload, type WorkspaceLifecycle } from "@/lib/backendRunner";
 import { sendAIMessage, buildSystemPrompt } from "@/lib/aiClient";
 import { parseErrors } from "@/components/ide/ErrorPanel";
 import { classifyPermissionRequest, formatPermissionLabel, savePermissionGrant, shouldPromptForPermission } from "@/lib/permissionPolicy";
@@ -1032,15 +1032,20 @@ export default function MultiTerminal() {
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 4, gap: 4 }}>
           {workspaceLifecycle && workspaceSessionIdRef.current && (<>
-              <span title={`Workspace expires ${new Date(workspaceLifecycle.expiresAt).toLocaleString()}`} style={{ color: workspaceLifecycle.state === "scheduled-delete" ? "#e3b341" : "var(--green)", fontSize: 10, whiteSpace: "nowrap" }}>
-                Workspace · {workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
+              <span title={workspaceLifecycle.state === "scheduled-delete" && workspaceLifecycle.deleteUndoUntil ? `Deletion scheduled. Undo available until ${new Date(workspaceLifecycle.deleteUndoUntil).toLocaleString()}` : `Workspace expires ${new Date(workspaceLifecycle.expiresAt).toLocaleString()}`} style={{ color: workspaceLifecycle.state === "scheduled-delete" ? "#e3b341" : "var(--green)", fontSize: 10, whiteSpace: "nowrap" }}>
+                Workspace · {workspaceLifecycle.state === "scheduled-delete" ? "Delete scheduled" : workspaceLifecycle.retentionMode === "three-days" ? "3 day keep" : "4 hour delete"}
               </span>
-              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
+              {workspaceLifecycle.state === "scheduled-delete" ? <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
+                const sessionId = workspaceSessionIdRef.current;
+                if (!sessionId)
+                    return;
+                void cancelWorkspaceDelete(sessionId).then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
+            }}>Undo delete</button> : <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current;
                 if (!sessionId)
                     return;
                 void setWorkspaceRetention(sessionId, "three-days").then(setWorkspaceLifecycle).catch((error) => addLine(tabs.find((tab) => tab.type === "shell")?.id || activeTab, "error", String(error)));
-            }}>Keep 3d</button>
+            }}>Keep 3d</button>}
               <button className="btn btn-ghost" style={{ fontSize: 10, padding: "0.15rem 0.35rem" }} onClick={() => {
                 const sessionId = workspaceSessionIdRef.current;
                 if (!sessionId || !window.confirm("Schedule this cloud workspace for deletion four hours after you leave?"))
