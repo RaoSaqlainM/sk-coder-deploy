@@ -267,12 +267,21 @@ export async function scheduleWorkspaceDeletion(id: string) {
     const record = await scheduleWorkspaceDelete(id);
     if (!record)
         throw new Error("Workspace session not found or expired.");
+    const session = sessions.get(id);
+    if (session) {
+        sessions.delete(id);
+        await run("docker", ["stop", session.containerName], 10000);
+    }
     return record;
 }
 export async function cancelWorkspaceDeletion(id: string) {
     const record = await cancelWorkspaceDelete(id);
     if (!record)
         throw new Error("Workspace session not found or expired.");
+    const containerName = containerNameFor(id);
+    const start = await run("docker", ["start", containerName], 10000);
+    if (start.exitCode !== 0)
+        throw new Error(start.stderr || "Workspace runtime could not restart.");
     return record;
 }
 async function closeWorkspaceSession(id: string) {

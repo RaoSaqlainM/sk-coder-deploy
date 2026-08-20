@@ -61,3 +61,4 @@
 - [ ] Stabilize the existing deployment by separating IndexedDB-backed project persistence from disposable execution runtimes and validating each primary language path before the next live release.
 - [x] Repair Go source execution so its temporary compiled binary runs from the disposable workspace rather than the non-executable `/tmp` mount.
 - [x] Show scheduled workspace deletion accurately in SK Shell and provide the promised one-hour undo action instead of incorrectly displaying a three-day keep state.
+- [x] Stop a scheduled-for-deletion runtime container immediately to free its active session slot, then restart it only if the user uses the one-hour undo action.
