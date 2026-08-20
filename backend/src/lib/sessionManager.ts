@@ -283,7 +283,13 @@ export async function writeWorkspaceStageChunk(sessionId: string, stageId: strin
     if (relative(stage.rootPath, target).startsWith(".."))
         throw new Error("Staging path escapes the session root.");
     await mkdir(dirname(target), { recursive: true, mode: 0o700 });
-    const handle = await open(target, "a+");
+    let handle;
+    try {
+        handle = await open(target, "r+");
+    }
+    catch {
+        handle = await open(target, "w+");
+    }
     try {
         await handle.write(data, 0, data.length, offset);
     }
