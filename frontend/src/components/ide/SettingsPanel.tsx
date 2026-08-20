@@ -79,6 +79,8 @@ async function loadPuter(): Promise<typeof window.puter> {
 export default function SettingsPanel() {
     const { settings, settingsTab, setSettingsTab, setShowSettings, updateEditorSettings, updateAISettings, updateGithubSettings, updatePreviewSettings, } = useIDEStore();
     const [keyInput, setKeyInput] = useState(settings.ai.apiKey);
+    const [endpointInput, setEndpointInput] = useState(settings.ai.apiEndpoint);
+    const [modelInput, setModelInput] = useState(settings.ai.model);
     const [tokenInput, setTokenInput] = useState(settings.github.token);
     const [showKey, setShowKey] = useState(false);
     const [showToken, setShowToken] = useState(false);
@@ -101,9 +103,11 @@ export default function SettingsPanel() {
         }
         setChecking(true);
         try {
-            const status = await validateAPIKey(keyInput.trim(), settings.ai.apiEndpoint, settings.ai.model);
+            const endpoint = endpointInput.trim();
+            const model = modelInput.trim();
+            const status = await validateAPIKey(keyInput.trim(), endpoint, model);
             if (status === "valid") {
-                updateAISettings({ apiKey: keyInput.trim(), keyStatus: "valid", usePuter: false });
+                updateAISettings({ apiKey: keyInput.trim(), apiEndpoint: endpoint, model, keyStatus: "valid", usePuter: false });
                 toast.success("AI Assistant connected!");
             }
             else if (status === "expired") {
@@ -309,6 +313,15 @@ export default function SettingsPanel() {
                       </button>
                     </div>
                   </div>
+                  <div className="settings-row col" style={{ marginTop: "0.7rem" }}>
+                    <label>Compatible Base URL</label>
+                    <input value={endpointInput} onChange={(e) => setEndpointInput(e.target.value)} placeholder="Optional. Example: https://provider.example/v1" style={{ fontFamily: "var(--font-code)", fontSize: 11 }}/>
+                  </div>
+                  <div className="settings-row col" style={{ marginTop: "0.7rem" }}>
+                    <label>Model</label>
+                    <input value={modelInput} onChange={(e) => setModelInput(e.target.value)} placeholder="Optional. Example: provider-model-name" style={{ fontFamily: "var(--font-code)", fontSize: 11 }}/>
+                  </div>
+                  <div className="settings-hint" style={{ marginTop: "0.5rem" }}>Use these fields only when your provider documents an OpenAI-compatible chat endpoint. Other API formats need their own tested provider adapter.</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem" }}>
                     {keyStatus === "valid" && <span style={{ fontSize: 12, color: "var(--green)" }}>✓ Connected</span>}
                     {keyStatus === "invalid" && <span style={{ fontSize: 12, color: "var(--red)" }}>✗ Invalid key</span>}

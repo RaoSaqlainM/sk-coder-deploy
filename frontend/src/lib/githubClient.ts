@@ -262,16 +262,19 @@ export async function importRepositoryToTree(token: string, repoFullName: string
 export async function pushFilesToRepo(token: string, owner: string, repo: string, files: FileNode[], onProgress?: (done: number, total: number) => void, commitMessage = "Update via SK Coder"): Promise<{
     success: number;
     failed: number;
+    skipped: { path: string; reason: string }[];
+    failures: { path: string; reason: string }[];
 }> {
     const flatFiles: {
         path: string;
         content: string;
+        isBrowserAsset: boolean;
     }[] = [];
     function flatten(nodes: FileNode[], base = "") {
         for (const node of nodes) {
             if (node.type === "file") {
                 const filePath = node.path.replace(/^\//, "").replace(/^[^/]+\//, "");
-                flatFiles.push({ path: filePath || node.name, content: node.content || "" });
+                flatFiles.push({ path: filePath || node.name, content: node.content || "", isBrowserAsset: Boolean(node.assetBlobId || node.assetData) });
             }
             if (node.children)
                 flatten(node.children, base);
@@ -281,7 +284,15 @@ export async function pushFilesToRepo(token: string, owner: string, repo: string
     let success = 0;
     let failed = 0;
     let done = 0;
+    const skipped: { path: string; reason: string }[] = [];
+    const failures: { path: string; reason: string }[] = [];
     for (const file of flatFiles) {
+        if (file.isBrowserAsset) {
+            skipped.push({ path: file.path, reason: "Binary browser assets need repository staging before they can be pushed" });
+            done++;
+            onProgress?.(done, flatFiles.length);
+            continue;
+        }
         try {
             const encoded = btoa(unescape(encodeURIComponent(file.content)));
             let sha: string | undefined;
@@ -309,14 +320,18 @@ export async function pushFilesToRepo(token: string, owner: string, repo: string
             });
             if (putRes.ok)
                 success++;
-            else
+            else {
                 failed++;
+                const error = await putRes.json().catch(() => ({})) as { message?: string };
+                failures.push({ path: file.path, reason: error.message || `GitHub returned HTTP ${putRes.status}` });
+            }
         }
         catch {
             failed++;
+            failures.push({ path: file.path, reason: "Network request failed" });
         }
         done++;
         onProgress?.(done, flatFiles.length);
     }
-    return { success, failed };
+    return { success, failed, skipped, failures };
 }

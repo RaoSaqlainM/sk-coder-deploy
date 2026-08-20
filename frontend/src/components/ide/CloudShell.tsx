@@ -215,7 +215,12 @@ export default function CloudShell() {
             const result = await pushFilesToRepo(token, owner, repo, fileTree, (done, total) => {
                 setPushProgress({ done, total });
             }, msg);
-            toast.success(`Committed & pushed ${result.success} file(s) to ${pushRepo}${result.failed > 0 ? ` (${result.failed} failed)` : ""}`);
+            if (result.success > 0)
+                toast.success(`Committed & pushed ${result.success} file${result.success === 1 ? "" : "s"} to ${pushRepo}`);
+            if (result.failed > 0)
+                toast.error(`${result.failed} file${result.failed === 1 ? " failed" : "s failed"}: ${result.failures[0]?.reason || "GitHub rejected the request"}`);
+            if (result.skipped.length > 0)
+                toast.message(`${result.skipped.length} browser asset${result.skipped.length === 1 ? " was" : "s were"} skipped because binary repository staging is not ready.`);
         }
         catch {
             toast.error("Push failed");

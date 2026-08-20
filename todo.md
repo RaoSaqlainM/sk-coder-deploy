@@ -105,3 +105,7 @@
 - [x] Audit Codespaces integration separately and present it as an optional GitHub-hosted development environment, not as a replacement for SK Shell or an embedded terminal.
 - [x] Assess Render’s persistent-service, disk, WebSocket, Docker, and deployment constraints before choosing it as an optional backend host.
 - [ ] Produce a phased language support roadmap for the attached list, separating verified isolated-runtime support, preview/validation-only formats, and toolchains that require separate image testing.
+- [ ] Replace the small GitHub text-only import path with manifest-based repository import that preserves repository structure, reports unsupported binary entries clearly, and stages large selected files without false success.
+- [x] Make GitHub push return per-file permission, conflict, and binary-file results instead of displaying a generic successful commit message when some files fail.
+- [x] Add clear AI settings for an OpenAI-compatible base URL and model so any provider with a documented compatible endpoint can be connected without relying on a key-prefix guess.
+- [ ] Add a provider-adapter process for non-compatible AI APIs so they are presented as unsupported until their official request format is implemented and tested.
