@@ -158,6 +158,19 @@ function restoreContent(nodes: FileNode[]): FileNode[] {
         children: n.children ? restoreContent(n.children) : undefined,
     }));
 }
+async function restoreIndexedContent(nodes: FileNode[]): Promise<FileNode[]> {
+    return Promise.all(nodes.map(async (node) => {
+        const localContent = node.type === "file" ? localStorage.getItem(FILE_CONTENT_PREFIX + node.path) : null;
+        const content = node.type === "file"
+            ? localContent ?? await getIndexedValue(FILE_CONTENT_PREFIX + node.path) ?? ""
+            : undefined;
+        return {
+            ...node,
+            content,
+            children: node.children ? await restoreIndexedContent(node.children) : undefined,
+        };
+    }));
+}
 function deleteAllFileContents(nodes: FileNode[]) {
     for (const node of nodes) {
         if (node.type === "file")
@@ -697,7 +710,7 @@ export const useIDEStore = create<IDEState & IDEActions>()(persist((set, get) =>
             }
             try {
                 const project = await loadProject(id);
-                const restoredTree = restoreContent(project.files || []);
+                const restoredTree = await restoreIndexedContent(project.files || []);
                 const map = new Map<string, FileNode>();
                 flattenTree(restoredTree, map);
                 set({ fileTree: restoredTree, flatFiles: map });
@@ -786,5 +799,10 @@ export const useIDEStore = create<IDEState & IDEActions>()(persist((set, get) =>
             isRunning: false,
             aiChatMessages: Array.isArray(p.aiChatMessages) ? p.aiChatMessages.slice(-30) : [],
         };
+    },
+    onRehydrateStorage: () => (state) => {
+        if (!state)
+            return;
+        void restoreIndexedContent(state.fileTree).then(state.setFileTree);
     },
 }));

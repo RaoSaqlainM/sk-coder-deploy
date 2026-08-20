@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { cancelWorkspaceDeletion, createWorkspaceSession, getWorkspaceLifecycle, runCodeInWorkspace, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus } from "../lib/sessionManager.js";
+import { cancelWorkspaceDeletion, createWorkspaceSession, getWorkspaceLifecycle, runCodeInWorkspace, runEphemeralCode, runWorkspaceCommand, scheduleWorkspaceDeletion, syncWorkspaceFiles, updateWorkspaceRetention, workspaceStatus } from "../lib/sessionManager.js";
 import type { RetentionMode } from "../lib/workspaceRegistry.js";
 import { installedRuntimes } from "../lib/runtimeRegistry.js";
 const router = Router();
@@ -105,8 +105,10 @@ router.post("/execute", async (req, res) => {
     if (!language || code === undefined)
         return res.status(400).json({ error: "language and code are required" });
     try {
-        const session = sessionId ? { id: sessionId } : await createWorkspaceSession();
-        res.json({ ...(await runCodeInWorkspace(session.id, language, code, typeof stdin === "string" ? stdin : "")), sessionId: session.id, tier: "oracle-workspace" });
+        const result = sessionId
+            ? await runCodeInWorkspace(sessionId, language, code, typeof stdin === "string" ? stdin : "")
+            : await runEphemeralCode(language, code, typeof stdin === "string" ? stdin : "");
+        res.json({ ...result, ...(sessionId ? { sessionId } : {}), tier: "oracle-workspace" });
     }
     catch (error) {
         res.status(503).json({ stdout: "", stderr: error instanceof Error ? error.message : "Execution service unavailable.", exitCode: 1, executionTime: 0, error: "runtime-unavailable", tier: "unavailable" });

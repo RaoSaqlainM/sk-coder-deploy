@@ -80,6 +80,12 @@ async function ensureCapacity() {
     if (Number.isFinite(freeBytes) && freeBytes < WORKSPACE_SAFETY_RESERVE_BYTES)
         throw new Error("Cloud runtime is preserving its safety reserve. Source files remain available in browser storage.");
 }
+async function activeRuntimeCount() {
+    const result = await run("docker", ["ps", "--filter", "label=skcoder.workspace=true", "-q"], 5000);
+    if (result.exitCode !== 0)
+        return sessions.size;
+    return result.stdout.split("\n").filter(Boolean).length;
+}
 export async function ensureDockerReady() {
     if (dockerReady !== null)
         return dockerReady;
@@ -92,7 +98,8 @@ export async function createWorkspaceSession(options?: {
 }) {
     if (!(await ensureDockerReady()))
         throw new Error("The isolated runtime service is not available.");
-    if (sessions.size >= SESSION_MAX_COUNT)
+    await removeExpiredWorkspaceSessions();
+    if (await activeRuntimeCount() >= SESSION_MAX_COUNT)
         throw new Error("The server has reached its active workspace limit.");
     await mkdir(WORKSPACE_ROOT, { recursive: true, mode: 0o700 });
     await ensureCapacity();
@@ -200,6 +207,15 @@ export async function runCodeInWorkspace(id: string, language: string, code: str
         await rm(hostRunPath, { recursive: true, force: true });
     }
 }
+export async function runEphemeralCode(language: string, code: string, stdin = "") {
+    const session = await createWorkspaceSession();
+    try {
+        return await runCodeInWorkspace(session.id, language, code, stdin);
+    }
+    finally {
+        await closeWorkspaceSession(session.id);
+    }
+}
 export async function openInteractiveTerminal(id: string, onStdout: (value: string) => void, onStderr: (value: string) => void, onClose: (code: number) => void) {
     const session = await getWorkspaceSession(id);
     const proc = spawn("docker", ["exec", "-i", "--user", "0:0", "-e", "HOME=/workspace", "-w", "/workspace", session.containerName, "bash", "--noprofile", "--norc"], { env: { ...process.env, TERM: "xterm-256color", HOME: "/workspace" } });
@@ -213,10 +229,15 @@ export function terminateInteractiveTerminal(proc: ChildProcess) {
     setTimeout(() => proc.kill("SIGKILL"), 1000).unref();
 }
 export async function workspaceStatus() {
-    const disk = await run("df", ["-B1", "--output=size,used,avail", WORKSPACE_ROOT], 5000);
+    startCleanup();
+    await removeExpiredWorkspaceSessions();
+    const [disk, activeSessions] = await Promise.all([
+        run("df", ["-B1", "--output=size,used,avail", WORKSPACE_ROOT], 5000),
+        activeRuntimeCount(),
+    ]);
     return {
         ready: await ensureDockerReady(),
-        activeSessions: sessions.size,
+        activeSessions,
         image: RUNTIME_IMAGE,
         capacity: {
             workspaceMaxBytes: WORKSPACE_MAX_BYTES,
@@ -262,17 +283,21 @@ async function closeWorkspaceSession(id: string) {
     await rm(workspacePath, { recursive: true, force: true });
     await markWorkspaceDeleted(id);
 }
+async function removeExpiredWorkspaceSessions() {
+    for (const record of await listExpiredWorkspaceRecords())
+        await closeWorkspaceSession(record.id);
+}
 function startCleanup() {
     if (cleanupStarted)
         return;
     cleanupStarted = true;
+    void removeExpiredWorkspaceSessions();
     const timer = setInterval(async () => {
         const cutoff = Date.now() - SESSION_TTL_HOURS * 60 * 60 * 1000;
         for (const session of sessions.values())
             if (session.lastUsedAt < cutoff)
                 await closeWorkspaceSession(session.id);
-        for (const record of await listExpiredWorkspaceRecords())
-            await closeWorkspaceSession(record.id);
+        await removeExpiredWorkspaceSessions();
     }, 5 * 60 * 1000);
     timer.unref();
 }
