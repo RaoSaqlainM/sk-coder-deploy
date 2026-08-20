@@ -16,15 +16,8 @@ import NewFileDialog from "@/components/ide/NewFileDialog";
 import ApkEditor from "@/components/ide/ApkEditor";
 import ErrorPanel from "@/components/ide/ErrorPanel";
 export default function IndexPage() {
-    const { activePanel, sidebarOpen, showSettings, setContextMenu, newItemType, loadWorkspaceFromBackend, saveWorkspaceToBackend } = useIDEStore();
+    const { activePanel, sidebarOpen, showSettings, setContextMenu, newItemType } = useIDEStore();
     const combinedWorkspace = activePanel === "editor" && sidebarOpen;
-    useEffect(() => {
-        void loadWorkspaceFromBackend();
-    }, [loadWorkspaceFromBackend]);
-    useEffect(() => {
-        const timer = window.setInterval(() => { void saveWorkspaceToBackend(); }, 10000);
-        return () => window.clearInterval(timer);
-    }, [saveWorkspaceToBackend]);
     return (<div className="ide-layout" onClick={() => setContextMenu(null)}>
       <TopBar />
 

@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { createProject, loadProject, saveProject } from "../lib/projectApi";
 import type { FileNode, Tab, TerminalType, TerminalLine, AIChatMessage, ActivePanel, Settings, ErrorEntry, } from "../types/ide";
 const DEFAULT_SETTINGS: Settings = {
     editor: {
@@ -689,41 +688,12 @@ export const useIDEStore = create<IDEState & IDEActions>()(persist((set, get) =>
     },
     setDragOver: (id) => set({ dragOverId: id }),
     saveWorkspaceToBackend: async () => {
-        const state = get();
-        const projectId = (state.settings.github.codespaceActive || "").trim() || localStorage.getItem("sk-coder-active-project");
-        if (!projectId)
-            return;
-        try {
-            await saveProject(projectId, state.fileTree);
-        }
-        catch {
-        }
     },
-    loadWorkspaceFromBackend: async (projectId) => {
-        const id = projectId || (get().settings.github.codespaceActive || "").trim() || localStorage.getItem("sk-coder-active-project");
-        try {
-            if (!id) {
-                const created = await createProject("Workspace");
-                localStorage.setItem("sk-coder-active-project", created.id);
-                set((state) => ({ settings: { ...state.settings, github: { ...state.settings.github, codespaceActive: created.id } } }));
-                return;
-            }
-            try {
-                const project = await loadProject(id);
-                const restoredTree = await restoreIndexedContent(project.files || []);
-                const map = new Map<string, FileNode>();
-                flattenTree(restoredTree, map);
-                set({ fileTree: restoredTree, flatFiles: map });
-                localStorage.setItem("sk-coder-active-project", id);
-            }
-            catch {
-                const created = await createProject("Workspace");
-                localStorage.setItem("sk-coder-active-project", created.id);
-                set((state) => ({ settings: { ...state.settings, github: { ...state.settings.github, codespaceActive: created.id } } }));
-            }
-        }
-        catch {
-        }
+    loadWorkspaceFromBackend: async () => {
+        const restoredTree = await restoreIndexedContent(get().fileTree);
+        const map = new Map<string, FileNode>();
+        flattenTree(restoredTree, map);
+        set({ fileTree: restoredTree, flatFiles: map });
     },
     setTerminalBridgeCmd: (cmd) => set({ terminalBridgeCmd: cmd }),
     openInTerminal: (path, isFolder, termType) => {

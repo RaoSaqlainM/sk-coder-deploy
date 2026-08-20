@@ -65,3 +65,4 @@
 - [x] Reconcile previously scheduled workspace records after backend start so their still-running containers are stopped and do not consume fresh SK Shell capacity.
 - [ ] Diagnose the reported live Vercel-to-AWS backend connection failure and correct only the verified API or WebSocket configuration mismatch.
 - [x] Recover automatically when a browser retains a deleted workspace-session ID instead of showing “Workspace session not found or expired.”
+- [x] Enforce the intended architecture: keep user project files in browser IndexedDB by default and use AWS workspaces only as temporary isolated terminal and runner environments.
