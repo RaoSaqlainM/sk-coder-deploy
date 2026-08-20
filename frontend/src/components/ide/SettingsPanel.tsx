@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useIDEStore } from "@/store/ideStore";
 import { validateGitHubToken } from "@/lib/githubClient";
+import { validateAPIKey } from "@/lib/aiClient";
 import { toast } from "sonner";
 import developerPortrait from "@/assets/saqlain-developer.jpg";
 type ToggleProps = {
@@ -75,55 +76,6 @@ async function loadPuter(): Promise<typeof window.puter> {
         document.head.appendChild(s);
     });
 }
-async function testApiKey(key: string): Promise<"valid" | "invalid" | "expired"> {
-    try {
-        let url = "";
-        let model = "";
-        if (key.startsWith("sk-ant-")) {
-            url = "https://api.anthropic.com/v1/messages";
-            const r = await fetch(url, {
-                method: "POST",
-                headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-                body: JSON.stringify({ model: "claude-3-haiku-20240307", max_tokens: 5, messages: [{ role: "user", content: "hi" }] }),
-            });
-            if (r.status === 401 || r.status === 403)
-                return "invalid";
-            if (r.status === 429)
-                return "expired";
-            return r.ok ? "valid" : "invalid";
-        }
-        if (key.startsWith("AIza")) {
-            url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-            const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: "hi" }] }] }) });
-            if (r.status === 400 || r.status === 403)
-                return "invalid";
-            return r.ok ? "valid" : "invalid";
-        }
-        url = "https://api.openai.com/v1/chat/completions";
-        model = "gpt-3.5-turbo";
-        if (key.startsWith("sk-or-")) {
-            url = "https://openrouter.ai/api/v1/chat/completions";
-            model = "openai/gpt-3.5-turbo";
-        }
-        else if (key.startsWith("gsk_")) {
-            url = "https://api.groq.com/openai/v1/chat/completions";
-            model = "llama3-8b-8192";
-        }
-        const r = await fetch(url, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-            body: JSON.stringify({ model, max_tokens: 5, messages: [{ role: "user", content: "hi" }] }),
-        });
-        if (r.status === 401 || r.status === 403)
-            return "invalid";
-        if (r.status === 429)
-            return "expired";
-        return r.ok ? "valid" : "invalid";
-    }
-    catch {
-        return "invalid";
-    }
-}
 export default function SettingsPanel() {
     const { settings, settingsTab, setSettingsTab, setShowSettings, updateEditorSettings, updateAISettings, updateGithubSettings, updatePreviewSettings, } = useIDEStore();
     const [keyInput, setKeyInput] = useState(settings.ai.apiKey);
@@ -149,7 +101,7 @@ export default function SettingsPanel() {
         }
         setChecking(true);
         try {
-            const status = await testApiKey(keyInput.trim());
+            const status = await validateAPIKey(keyInput.trim(), settings.ai.apiEndpoint, settings.ai.model);
             if (status === "valid") {
                 updateAISettings({ apiKey: keyInput.trim(), keyStatus: "valid", usePuter: false });
                 toast.success("AI Assistant connected!");
@@ -157,6 +109,18 @@ export default function SettingsPanel() {
             else if (status === "expired") {
                 updateAISettings({ apiKey: keyInput.trim(), keyStatus: "expired" });
                 toast.error("Key has no remaining credits");
+            }
+            else if (status === "unsupported") {
+                updateAISettings({ keyStatus: status });
+                toast.error("This provider is not configured. Add its compatible endpoint and model, or choose a supported provider.");
+            }
+            else if (status === "unreachable") {
+                updateAISettings({ keyStatus: status });
+                toast.error("The AI service could not be reached. Check the endpoint, browser network access, or provider CORS policy.");
+            }
+            else if (status === "configuration_error") {
+                updateAISettings({ keyStatus: status });
+                toast.error("The key was accepted but the model or endpoint configuration needs attention.");
             }
             else {
                 updateAISettings({ keyStatus: "invalid" });
@@ -349,6 +313,9 @@ export default function SettingsPanel() {
                     {keyStatus === "valid" && <span style={{ fontSize: 12, color: "var(--green)" }}>✓ Connected</span>}
                     {keyStatus === "invalid" && <span style={{ fontSize: 12, color: "var(--red)" }}>✗ Invalid key</span>}
                     {keyStatus === "expired" && <span style={{ fontSize: 12, color: "var(--orange)" }}>⚠ Credits used up</span>}
+                    {keyStatus === "unsupported" && <span style={{ fontSize: 12, color: "var(--orange)" }}>Provider needs endpoint setup</span>}
+                    {keyStatus === "unreachable" && <span style={{ fontSize: 12, color: "var(--orange)" }}>Service could not be reached</span>}
+                    {keyStatus === "configuration_error" && <span style={{ fontSize: 12, color: "var(--orange)" }}>Endpoint or model needs setup</span>}
                     {(keyStatus === "none" || keyStatus === "checking") && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{checking ? "Checking..." : "Not connected"}</span>}
                     <button className="btn btn-primary" onClick={handleConnectKey} disabled={checking || !keyInput.trim()}>
                       {checking ? "Checking..." : "Connect"}

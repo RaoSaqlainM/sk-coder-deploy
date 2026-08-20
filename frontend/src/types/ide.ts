@@ -33,7 +33,7 @@ export type AIChatMessage = {
     content: string;
     timestamp: number;
 };
-export type AIKeyStatus = "none" | "valid" | "invalid" | "expired" | "checking";
+export type AIKeyStatus = "none" | "valid" | "invalid" | "expired" | "unsupported" | "unreachable" | "configuration_error" | "checking";
 export type ActivePanel = "files" | "editor" | "terminal" | "preview" | "ai" | "settings" | "cloud" | "apk";
 export type PreviewViewport = "mobile" | "tablet" | "desktop";
 export type ContextMenuEntry = {

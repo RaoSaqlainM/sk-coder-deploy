@@ -235,6 +235,12 @@ export default function AIChatPanel() {
                 if (res.error === "invalid_key") {
                     addAIChatMessage({ role: "assistant", content: "Your API key appears invalid. Go to **Settings → AI Assistant** and update your key." });
                 }
+                else if (res.error === "provider_not_configured") {
+                    addAIChatMessage({ role: "assistant", content: "This AI provider is not configured in SK Coder yet. Add an OpenAI-compatible endpoint and model in **Settings → AI Assistant**, or use a supported provider." });
+                }
+                else if (res.error === "configuration_error") {
+                    addAIChatMessage({ role: "assistant", content: "The AI service responded, but the selected model or endpoint is not available. Review the provider endpoint and model in **Settings → AI Assistant**." });
+                }
                 else if (res.error === "expired") {
                     addAIChatMessage({ role: "assistant", content: "Your API usage limit has been reached. Please check your account." });
                 }

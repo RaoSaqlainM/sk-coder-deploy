@@ -6,7 +6,7 @@ type AIResponse = {
 };
 function detectEndpoint(key: string, customEndpoint: string): {
     endpoint: string;
-    type: "gemini" | "openai";
+    type: "gemini" | "openai" | "anthropic" | "unsupported";
 } {
     if (customEndpoint.trim()) {
         const ep = customEndpoint.trim().replace(/\/$/, "");
@@ -21,10 +21,10 @@ function detectEndpoint(key: string, customEndpoint: string): {
     if (key.startsWith("sk-or-"))
         return { endpoint: "https://openrouter.ai/api/v1", type: "openai" };
     if (key.startsWith("sk-ant-"))
-        return { endpoint: "https://api.anthropic.com/v1", type: "openai" };
+        return { endpoint: "https://api.anthropic.com/v1", type: "anthropic" };
     if (key.startsWith("sk-"))
         return { endpoint: "https://api.openai.com/v1", type: "openai" };
-    return { endpoint: "https://api.openai.com/v1", type: "openai" };
+    return { endpoint: "", type: "unsupported" };
 }
 function detectModel(key: string, customModel: string): string {
     if (customModel.trim())
@@ -54,10 +54,12 @@ async function callGemini(key: string, model: string, messages: AIChatMessage[],
                 generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
             }),
         });
-        if (res.status === 400 || res.status === 401 || res.status === 403)
+        if (res.status === 401 || res.status === 403)
             return { content: "", error: "invalid_key" };
         if (res.status === 429)
             return { content: "", error: "expired" };
+        if (res.status === 400 || res.status === 404)
+            return { content: "", error: "configuration_error" };
         if (!res.ok)
             return { content: "", error: `error_${res.status}` };
         const data = await res.json();
@@ -92,6 +94,8 @@ async function callOpenAICompat(key: string, endpoint: string, model: string, me
             return { content: "", error: "invalid_key" };
         if (res.status === 429)
             return { content: "", error: "expired" };
+        if (res.status === 400 || res.status === 404)
+            return { content: "", error: "configuration_error" };
         if (!res.ok)
             return { content: "", error: `error_${res.status}` };
         const data = await res.json();
@@ -101,16 +105,53 @@ async function callOpenAICompat(key: string, endpoint: string, model: string, me
         return { content: "", error: "network_error" };
     }
 }
+async function callAnthropic(key: string, model: string, messages: AIChatMessage[], systemPrompt: string): Promise<AIResponse> {
+    try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+            },
+            body: JSON.stringify({
+                model,
+                max_tokens: 4096,
+                system: systemPrompt,
+                messages: messages.map((message) => ({ role: message.role, content: message.content })),
+            }),
+        });
+        if (res.status === 401 || res.status === 403)
+            return { content: "", error: "invalid_key" };
+        if (res.status === 429)
+            return { content: "", error: "expired" };
+        if (res.status === 400 || res.status === 404)
+            return { content: "", error: "configuration_error" };
+        if (!res.ok)
+            return { content: "", error: `error_${res.status}` };
+        const data = await res.json();
+        const content = Array.isArray(data?.content) ? data.content.map((item: { text?: string }) => item.text || "").join("") : "";
+        return { content };
+    }
+    catch {
+        return { content: "", error: "network_error" };
+    }
+}
 export async function validateAPIKey(key: string, customEndpoint: string, customModel: string): Promise<AIKeyStatus> {
     if (!key.trim())
         return "none";
     const { endpoint, type } = detectEndpoint(key, customEndpoint);
+    if (type === "unsupported")
+        return "unsupported";
     const model = detectModel(key, customModel);
     const testMsg: AIChatMessage[] = [{ id: "t", role: "user", content: "Hi", timestamp: 0 }];
     let res: AIResponse;
     try {
         if (type === "gemini") {
             res = await callGemini(key, model, testMsg, "You are a helpful assistant.");
+        }
+        else if (type === "anthropic") {
+            res = await callAnthropic(key, model, testMsg, "You are a helpful assistant.");
         }
         else {
             res = await callOpenAICompat(key, endpoint, model, testMsg, "You are a helpful assistant.");
@@ -120,13 +161,15 @@ export async function validateAPIKey(key: string, customEndpoint: string, custom
         if (res.error === "expired")
             return "expired";
         if (res.error === "network_error")
-            return "invalid";
+            return "unreachable";
+        if (res.error === "configuration_error")
+            return "configuration_error";
         if (res.error)
-            return "invalid";
+            return "configuration_error";
         return "valid";
     }
     catch {
-        return "invalid";
+        return "unreachable";
     }
 }
 export async function sendAIMessage(opts: {
@@ -139,35 +182,42 @@ export async function sendAIMessage(opts: {
     selectedPaths?: string[];
 }): Promise<AIResponse> {
     const { key, customEndpoint, customModel, messages, systemPrompt, projectId, selectedPaths } = opts;
-    try {
-        const proxyRes = await fetch(`${API_BASE}/ai/chat`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                apiKey: key,
-                provider: customEndpoint.includes("generativelanguage") ? "gemini" : "openai",
-                model: customModel || undefined,
-                messages,
-                systemPrompt,
-                projectId,
-                selectedPaths,
-            }),
-        });
-        if (proxyRes.ok) {
-            const data = await proxyRes.json();
-            if (data?.content)
-                return { content: data.content };
-            if (data?.error)
-                return { content: "", error: data.error };
+    const { endpoint, type } = detectEndpoint(key, customEndpoint);
+    if (type === "unsupported")
+        return { content: "", error: "provider_not_configured" };
+    if (type === "openai") {
+        try {
+            const proxyRes = await fetch(`${API_BASE}/ai/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKey: key,
+                    provider: "openai",
+                    endpoint,
+                    model: customModel || undefined,
+                    messages,
+                    systemPrompt,
+                    projectId,
+                    selectedPaths,
+                }),
+            });
+            if (proxyRes.ok) {
+                const data = await proxyRes.json();
+                if (data?.content)
+                    return { content: data.content };
+                if (data?.error)
+                    return { content: "", error: data.error };
+            }
+        }
+        catch {
         }
     }
-    catch {
-    }
-    const { endpoint, type } = detectEndpoint(key, customEndpoint);
     const model = detectModel(key, customModel);
     try {
         if (type === "gemini")
             return await callGemini(key, model, messages, systemPrompt);
+        if (type === "anthropic")
+            return await callAnthropic(key, model, messages, systemPrompt);
         return await callOpenAICompat(key, endpoint, model, messages, systemPrompt);
     }
     catch (e) {

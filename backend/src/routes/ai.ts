@@ -22,9 +22,10 @@ router.post("/ai/chat", async (req: any, res) => {
     const userPrompt = typeof prompt === "string" ? prompt : (messages?.[messages.length - 1]?.content || "");
     if (!apiKey || !userPrompt)
         return res.status(400).json({ error: "apiKey and prompt required" });
-    const apiEndpoint = provider === "openai"
-        ? "https://api.openai.com/v1/chat/completions"
-        : (endpoint || "https://api.openai.com/v1/chat/completions");
+    const apiBase = typeof endpoint === "string" && endpoint.trim()
+        ? endpoint.trim().replace(/\/$/, "")
+        : "https://api.openai.com/v1";
+    const apiEndpoint = apiBase.endsWith("/chat/completions") ? apiBase : `${apiBase}/chat/completions`;
     let enrichedPrompt = userPrompt;
     const context = loadProjectContext(projectId, req.deviceId, selectedPaths || []);
     if (context) {

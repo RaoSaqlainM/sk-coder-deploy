@@ -18,9 +18,6 @@ export default function CloudShell() {
     }[]>([]);
     const [loading, setLoading] = useState(false);
     const [username, setUsername] = useState(settings.github.username || "");
-    const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [newRepoName, setNewRepoName] = useState("");
     const [newRepoDesc, setNewRepoDesc] = useState("");
     const [newRepoPrivate, setNewRepoPrivate] = useState(true);
@@ -62,39 +59,32 @@ export default function CloudShell() {
             setLoading(false);
         }
     }
-    function openInIframe(url: string) {
-        setIframeUrl(url);
-        if (iframeTimerRef.current)
-            clearTimeout(iframeTimerRef.current);
-        iframeTimerRef.current = setTimeout(() => {
-            try {
-                const doc = iframeRef.current?.contentDocument;
-                if (!doc || doc.URL === "about:blank") {
-                    setIframeUrl(null);
-                    window.open(url, "_blank", "noopener,noreferrer");
-                    toast.info("Codespace opened in new tab (iframe blocked by X-Frame-Options)");
-                }
-            }
-            catch {
-                setIframeUrl(null);
-                window.open(url, "_blank", "noopener,noreferrer");
-                toast.info("Codespace opened in new tab");
-            }
-        }, 3000);
+    function openCodespaceTab(tab: Window | null, url: string) {
+        if (!tab) {
+            toast.error("Your browser blocked the Codespace tab. Allow pop-ups for SK Coder, then try again.");
+            return;
+        }
+        tab.location.assign(url);
     }
     async function handleOpenCodespace(cs: Codespace) {
+        const tab = window.open("", "_blank");
+        if (!tab) {
+            toast.error("Your browser blocked the Codespace tab. Allow pop-ups for SK Coder, then try again.");
+            return;
+        }
         if (cs.state === "Shutdown") {
             toast.info("Starting codespace, please wait...");
             await startCodespace(token, cs.name);
             await new Promise((r) => setTimeout(r, 4000));
-            await loadAll();
-            const updated = codespaces.find((c) => c.name === cs.name);
+            const refreshed = await listCodespaces(token);
+            setCodespaces(refreshed);
+            const updated = refreshed.find((c) => c.name === cs.name);
             if (updated)
                 cs = updated;
         }
         const url = getCodespaceWebUrl(cs);
         updateGithubSettings({ codespaceActive: cs.name });
-        openInIframe(url);
+        openCodespaceTab(tab, url);
     }
     async function handleStopCodespace(cs: Codespace) {
         await stopCodespace(token, cs.name);
@@ -113,6 +103,11 @@ export default function CloudShell() {
             toast.error("Select a repository first");
             return;
         }
+        const tab = window.open("", "_blank");
+        if (!tab) {
+            toast.error("Your browser blocked the Codespace tab. Allow pop-ups for SK Coder, then try again.");
+            return;
+        }
         setCreatingCodespace(true);
         try {
             const repo = repos.find((r) => r.full_name === selectedRepo);
@@ -120,7 +115,7 @@ export default function CloudShell() {
             if (cs) {
                 toast.success("Codespace created! Opening…");
                 await new Promise((r) => setTimeout(r, 2000));
-                openInIframe(getCodespaceWebUrl(cs));
+                openCodespaceTab(tab, getCodespaceWebUrl(cs));
                 await loadAll();
             }
             else {
@@ -254,26 +249,6 @@ export default function CloudShell() {
             </a>
           </div>
         </div>
-      </div>);
-    }
-    if (iframeUrl) {
-        return (<div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 0.75rem", background: "var(--bg-sidebar)", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
-          <button className="btn" style={{ fontSize: 11, padding: "0.2rem 0.6rem" }} onClick={() => { setIframeUrl(null); if (iframeTimerRef.current)
-            clearTimeout(iframeTimerRef.current); }}>
-            ← Back
-          </button>
-          <span style={{ flex: 1, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{iframeUrl}</span>
-          <button className="btn" style={{ fontSize: 11, padding: "0.2rem 0.6rem" }} onClick={() => { if (iframeRef.current)
-            iframeRef.current.src = iframeUrl; }}>
-            ↻ Refresh
-          </button>
-          <a href={iframeUrl} target="_blank" rel="noopener noreferrer" className="btn" style={{ fontSize: 11, padding: "0.2rem 0.6rem", textDecoration: "none" }}>
-            ↗ Open Tab
-          </a>
-        </div>
-        <iframe ref={iframeRef} src={iframeUrl} style={{ flex: 1, border: "none", minHeight: 0 }} title="GitHub Codespace" onLoad={() => { if (iframeTimerRef.current)
-            clearTimeout(iframeTimerRef.current); }} sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"/>
       </div>);
     }
     return (<div className="cloud-panel">

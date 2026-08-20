@@ -99,3 +99,9 @@
 - [x] Restore one automatic file-type-aware action surface that exposes only valid Run, Compile, or Preview actions for the selected file.
 - [x] Move the Manual and Settings controls to the requested right-side header location without changing the approved workspace layout.
 - [x] Test editor navigation, HTML preview, media preview, and supported source run actions before publishing the updated frontend preview.
+- [x] Treat the AI-provider and GitHub tokens pasted in chat as compromised; verify that no copy entered source control, deployment files, browser persistence, logs, or test requests.
+- [x] Replace prefix-based AI-key validation with provider-aware validation that does not mislabel unsupported providers, network failures, rate limits, or CORS failures as “Invalid API key.”
+- [ ] Audit the GitHub integration for minimum fine-grained token permissions, repository fetch, repository import, branch/file movement, commit/push, and browser popup behavior.
+- [x] Audit Codespaces integration separately and present it as an optional GitHub-hosted development environment, not as a replacement for SK Shell or an embedded terminal.
+- [x] Assess Render’s persistent-service, disk, WebSocket, Docker, and deployment constraints before choosing it as an optional backend host.
+- [ ] Produce a phased language support roadmap for the attached list, separating verified isolated-runtime support, preview/validation-only formats, and toolchains that require separate image testing.
