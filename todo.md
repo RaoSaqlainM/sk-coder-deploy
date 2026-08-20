@@ -104,7 +104,7 @@
 - [ ] Audit the GitHub integration for minimum fine-grained token permissions, repository fetch, repository import, branch/file movement, commit/push, and browser popup behavior.
 - [x] Audit Codespaces integration separately and present it as an optional GitHub-hosted development environment, not as a replacement for SK Shell or an embedded terminal.
 - [x] Assess Render’s persistent-service, disk, WebSocket, Docker, and deployment constraints before choosing it as an optional backend host.
-- [ ] Produce a phased language support roadmap for the attached list, separating verified isolated-runtime support, preview/validation-only formats, and toolchains that require separate image testing.
+- [x] Produce a phased language support roadmap and separate language-image catalogue for verified runtimes, preview/validation-only formats, and toolchains requiring dedicated image testing.
 - [ ] Replace the small GitHub text-only import path with manifest-based repository import that preserves repository structure, reports unsupported binary entries clearly, and stages large selected files without false success.
 - [x] Make GitHub push return per-file permission, conflict, and binary-file results instead of displaying a generic successful commit message when some files fail.
 - [x] Add clear AI settings for an OpenAI-compatible base URL and model so any provider with a documented compatible endpoint can be connected without relying on a key-prefix guess.
@@ -114,4 +114,4 @@
 - [ ] Keep browser-only IndexedDB projects outside the server-retention prompt and explain that browser-data clearing is controlled by the user’s browser, not the Oracle server.
 - [x] Build a separate protected administrator dashboard foundation with aggregate workspace, terminal, runner, capacity, and cleanup metrics plus confirmation-gated inactive-workspace cleanup scheduling.
 - [ ] Define protected automatic cleanup for terminal and runner scratch, package artifacts, staging data, previews, logs, and outputs so they expire independently of retained user source files.
-- [ ] Define a staged language-image catalogue and queue strategy for expanding from verified languages toward hundreds of compilers without loading every toolchain into one unsafe runtime image.
+- [x] Define a staged language-image catalogue and queue strategy for expanding from verified languages toward hundreds of compilers without loading every toolchain into one unsafe runtime image.
