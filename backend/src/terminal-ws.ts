@@ -16,7 +16,13 @@ export function setupTerminalWs(server: Server) {
     wss.on("connection", async (ws: WebSocket, request: IncomingMessage) => {
         try {
             const requestedSessionId = new URL(request.url || "/", "http://localhost").searchParams.get("sessionId");
-            const session = requestedSessionId ? await getWorkspaceSession(requestedSessionId) : await createWorkspaceSession();
+            let session;
+            try {
+                session = requestedSessionId ? await getWorkspaceSession(requestedSessionId) : await createWorkspaceSession();
+            }
+            catch {
+                session = await createWorkspaceSession();
+            }
             const terminal = await openInteractiveTerminal(session.id, (data) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "stdout", data })), (data) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "stderr", data })), (code) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "exit", code, cwd: "/" })));
             ws.send(JSON.stringify({ type: "ready", cwd: "/", sessionId: session.id }));
             ws.on("message", (raw) => {
